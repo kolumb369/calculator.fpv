@@ -1,0 +1,3575 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FPV PID CALCULATOR v1.0</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg: #060809;
+  --bg2: #0c0f12;
+  --bg3: #111518;
+  --border: #1e2830;
+  --border2: #243040;
+  --green: #00ff88;
+  --green2: #00cc6a;
+  --amber: #ffaa00;
+  --red: #ff3344;
+  --blue: #00aaff;
+  --purple: #cc44ff;
+  --text: #c8d8e8;
+  --text2: #7a9ab0;
+  --text3: #4a6070;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:15px;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 80% 40% at 50% 0%,rgba(0,255,136,.03) 0%,transparent 70%),radial-gradient(ellipse 50% 50% at 100% 100%,rgba(0,170,255,.04) 0%,transparent 60%),repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(0,255,136,.005) 40px,rgba(0,255,136,.005) 41px),repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(0,255,136,.005) 40px,rgba(0,255,136,.005) 41px);pointer-events:none;z-index:0}
+.scanline{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(to right,transparent,rgba(0,255,136,.15),transparent);animation:scan 4s linear infinite;z-index:1000;pointer-events:none}
+@keyframes scan{from{top:0}to{top:100vh}}
+.container{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 20px 60px}
+
+/* HEADER */
+header{padding:30px 0 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);margin-bottom:30px}
+.logo{font-family:'Orbitron',monospace;font-size:22px;font-weight:900;letter-spacing:4px;color:var(--green);text-shadow:0 0 20px rgba(0,255,136,.4)}
+.logo span{color:var(--amber)}
+.version{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:3px;margin-top:4px}
+.status-bar{display:flex;gap:20px;align-items:center}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* STEPS */
+.steps-nav{display:flex;margin-bottom:30px;background:var(--bg2);border:1px solid var(--border);border-radius:4px;overflow:hidden}
+.step-btn{flex:1;padding:14px 6px;background:none;border:none;border-right:1px solid var(--border);color:var(--text3);font-family:'Orbitron',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;transition:all .2s;display:flex;flex-direction:column;align-items:center;gap:4px}
+.step-btn:last-child{border-right:none}
+.step-btn .num{font-size:16px;font-weight:700;color:var(--border2)}
+.step-btn.active{background:rgba(0,255,136,.06);color:var(--green);border-bottom:2px solid var(--green)}
+.step-btn.active .num{color:var(--green);text-shadow:0 0 10px rgba(0,255,136,.5)}
+.step-btn.done{color:var(--text2)}
+.step-btn.done .num{color:var(--green2)}
+
+/* PANELS */
+.panel{display:none;animation:fadeIn .3s ease}
+.panel.active{display:block}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:4px;margin-bottom:20px;overflow:hidden}
+.card-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:rgba(0,255,136,.02)}
+.card-icon{font-size:16px}
+.card-title{font-family:'Orbitron',monospace;font-size:11px;letter-spacing:3px;color:var(--text);text-transform:uppercase}
+.card-badge{margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:11px;padding:3px 10px;border-radius:3px;letter-spacing:1px}
+.badge-kamikaze{background:rgba(255,51,68,.15);color:var(--red);border:1px solid var(--red)}
+.badge-bomber{background:rgba(255,170,0,.15);color:var(--amber);border:1px solid var(--amber)}
+.badge-normal{background:rgba(0,255,136,.1);color:var(--green);border:1px solid var(--green)}
+.card-body{padding:20px}
+
+/* GRID */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+
+/* MISSION TYPE SELECTOR */
+.mission-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:4px}
+.mission-type-card{padding:16px;border:2px solid var(--border2);border-radius:6px;cursor:pointer;transition:all .2s;text-align:center;background:var(--bg);position:relative}
+.mission-type-card:hover{border-color:var(--text3)}
+.mission-type-card.selected-normal{border-color:var(--green);background:rgba(0,255,136,.05)}
+.mission-type-card.selected-kamikaze{border-color:var(--red);background:rgba(255,51,68,.05)}
+.mission-type-card.selected-bomber{border-color:var(--amber);background:rgba(255,170,0,.05)}
+.mission-type-card .type-icon{font-size:28px;margin-bottom:8px}
+.mission-type-card .type-name{font-family:'Orbitron',monospace;font-size:11px;letter-spacing:2px;margin-bottom:6px}
+.mission-type-card .type-desc{font-size:12px;color:var(--text3);line-height:1.4}
+.mission-type-card .type-params{margin-top:10px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text3);border-top:1px solid var(--border);padding-top:8px;text-align:left}
+.mission-type-card.selected-normal .type-name{color:var(--green)}
+.mission-type-card.selected-kamikaze .type-name{color:var(--red)}
+.mission-type-card.selected-bomber .type-name{color:var(--amber)}
+.selected-check{position:absolute;top:8px;right:10px;font-size:14px;display:none}
+.mission-type-card.selected-normal .selected-check,
+.mission-type-card.selected-kamikaze .selected-check,
+.mission-type-card.selected-bomber .selected-check{display:block}
+
+/* WEAR SELECTOR */
+.wear-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.wear-card{padding:12px;border:2px solid var(--border2);border-radius:4px;cursor:pointer;transition:all .2s;text-align:center;background:var(--bg)}
+.wear-card:hover{border-color:var(--text3)}
+.wear-card.selected{border-color:var(--green);background:rgba(0,255,136,.05)}
+.wear-card .wear-icon{font-size:22px;margin-bottom:4px}
+.wear-card .wear-name{font-family:'Orbitron',monospace;font-size:10px;letter-spacing:1px;color:var(--text2)}
+.wear-card .wear-hours{font-size:11px;color:var(--text3);margin-top:2px}
+.wear-card.selected .wear-name{color:var(--green)}
+
+/* FORM */
+.field{margin-bottom:18px}
+.field label{display:block;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text2);letter-spacing:2px;margin-bottom:8px;text-transform:uppercase}
+.field-hint{font-size:11px;color:var(--text3);margin-top:4px;font-style:italic}
+.field input,.field select{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:14px;outline:none;transition:border-color .2s,box-shadow .2s}
+.field input:focus,.field select:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(0,255,136,.1)}
+.field .unit{position:relative}
+.field .unit input{padding-right:55px}
+.field .unit-label{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text3)}
+
+/* UPLOAD */
+.upload-zone{border:2px dashed var(--border2);border-radius:6px;padding:36px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--green);background:rgba(0,255,136,.03)}
+.upload-zone .icon{font-size:36px;margin-bottom:10px;opacity:.4}
+.upload-zone .title{font-family:'Orbitron',monospace;font-size:12px;letter-spacing:2px;color:var(--text2);margin-bottom:4px}
+.upload-zone .sub{font-size:13px;color:var(--text3)}
+
+/* BUTTONS */
+.btn{padding:12px 28px;border:none;border-radius:3px;font-family:'Orbitron',monospace;font-size:11px;letter-spacing:2px;cursor:pointer;transition:all .15s;text-transform:uppercase}
+.btn-primary{background:var(--green);color:#000;font-weight:700}
+.btn-primary:hover{background:#00ffaa;box-shadow:0 0 20px rgba(0,255,136,.4)}
+.btn-secondary{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.btn-secondary:hover{border-color:var(--green);color:var(--green)}
+.btn-group{display:flex;gap:12px;justify-content:flex-end;margin-top:24px}
+
+/* ANALYSIS */
+.analysis-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.analysis-item:last-child{border-bottom:none}
+.analysis-icon{font-size:18px;width:24px;text-align:center}
+.analysis-label{flex:1;font-size:14px;color:var(--text2)}
+.analysis-value{font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--green)}
+.analysis-bar{width:80px;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.analysis-bar-fill{height:100%;background:var(--green);border-radius:2px}
+
+/* ANALYZE STEPS */
+.analyze-progress{display:none;flex-direction:column;gap:12px;padding:20px 0}
+.analyze-progress.active{display:flex}
+.analyze-step{display:flex;align-items:center;gap:14px;font-family:'Share Tech Mono',monospace;font-size:13px}
+.analyze-step-icon{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0}
+.analyze-step-icon.pending{background:var(--border2);color:var(--text3)}
+.analyze-step-icon.running{background:var(--amber);color:#000;animation:pulse .5s ease-in-out infinite}
+.analyze-step-icon.done{background:var(--green);color:#000}
+.analyze-step-text{color:var(--text2)}
+.analyze-step-text.done{color:var(--green)}
+.analyze-step-text.running{color:var(--amber)}
+
+/* PID DISPLAY */
+.pid-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px}
+.pid-axis{background:var(--bg);border:1px solid var(--border2);border-radius:4px;padding:16px}
+.pid-axis-name{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.pid-axis-name.roll{color:#ff6644}
+.pid-axis-name.pitch{color:var(--amber)}
+.pid-axis-name.yaw{color:var(--blue)}
+.pid-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0}
+.pid-letter{font-family:'Orbitron',monospace;font-size:11px;color:var(--text3);letter-spacing:1px}
+.pid-val{font-family:'Share Tech Mono',monospace;font-size:22px;color:var(--green);font-weight:700}
+.pid-bar{flex:1;height:3px;background:var(--border);margin:0 10px;border-radius:2px;overflow:hidden}
+.pid-bar-fill{height:100%;border-radius:2px}
+
+/* PROFILE TABS */
+.profile-tabs{display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border2);border-radius:4px;overflow:hidden}
+.profile-tab{flex:1;padding:10px;background:var(--bg);border:none;color:var(--text3);font-family:'Orbitron',monospace;font-size:10px;letter-spacing:2px;cursor:pointer;transition:all .2s;text-align:center}
+.profile-tab.active{background:rgba(255,170,0,.08);color:var(--amber);border-bottom:2px solid var(--amber)}
+
+/* CLI */
+.cli-block{background:var(--bg);border:1px solid var(--border2);border-radius:4px;padding:20px;font-family:'Share Tech Mono',monospace;font-size:12px;line-height:1.9;white-space:pre-wrap;max-height:500px;overflow-y:auto;position:relative}
+.cli-block .comment{color:var(--text3)}
+.cli-block .cmd{color:var(--green)}
+.cli-block .val{color:var(--amber)}
+.cli-block .section{color:var(--blue)}
+.cli-block .warning-line{color:var(--red)}
+.copy-btn{display:block;width:100%;margin-top:12px;padding:12px;background:rgba(0,255,136,.08);border:1px solid var(--green);border-radius:3px;color:var(--green);font-family:'Orbitron',monospace;font-size:11px;letter-spacing:2px;cursor:pointer;transition:all .15s;text-align:center}
+.copy-btn:hover{background:rgba(0,255,136,.18)}
+
+/* WARNINGS */
+.warning{display:flex;gap:12px;padding:12px 16px;border-radius:3px;margin-bottom:8px;border-left:3px solid}
+.warning.danger{background:rgba(255,51,68,.08);border-color:var(--red)}
+.warning.caution{background:rgba(255,170,0,.08);border-color:var(--amber)}
+.warning.info{background:rgba(0,170,255,.08);border-color:var(--blue)}
+.warning-icon{font-size:16px;flex-shrink:0}
+.warning-text{font-size:14px;line-height:1.5}
+
+/* METRICS */
+.metric-big{text-align:center;padding:18px 10px}
+.metric-big .num{font-family:'Orbitron',monospace;font-size:34px;font-weight:900;line-height:1;text-shadow:0 0 20px currentColor}
+.metric-big .num.green{color:var(--green)}
+.metric-big .num.warn{color:var(--amber)}
+.metric-big .num.danger{color:var(--red)}
+.metric-big .unit2{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text3);margin-top:6px;letter-spacing:2px}
+.metric-big .label2{font-size:12px;color:var(--text2);margin-top:4px}
+
+/* SECTION DIVIDER */
+.section-divider{display:flex;align-items:center;gap:16px;margin:24px 0;color:var(--text3);font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:3px}
+.section-divider::before,.section-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* PHILOSOPHY */
+.philosophy{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:24px;margin-bottom:24px}
+.philosophy-title{font-family:'Orbitron',monospace;font-size:13px;letter-spacing:3px;color:var(--amber);margin-bottom:16px}
+.philosophy-cols{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.philosophy-col h4{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text2);letter-spacing:2px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.philosophy-col ul{list-style:none}
+.philosophy-col ul li{padding:5px 0;font-size:14px;color:var(--text2);display:flex;gap:8px}
+.philosophy-col ul li::before{content:'›';color:var(--green);flex-shrink:0}
+
+/* FILTER METRICS */
+.filter-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.filter-item{text-align:center;padding:14px;background:var(--bg);border:1px solid var(--border2);border-radius:4px}
+.filter-item .f-label{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text3);margin-bottom:6px;letter-spacing:1px}
+.filter-item .f-val{font-family:'Orbitron',monospace;font-size:20px;color:var(--green);font-weight:700}
+.filter-item .f-sub{font-size:11px;color:var(--text3);margin-top:4px}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--green)}
+
+/* ── MODE TOGGLE (v1.0) ─────────────────────────────────────── */
+.mode-toggle{display:flex;align-items:center;gap:10px;margin-bottom:20px;padding:10px 16px;background:var(--bg2);border:1px solid var(--border2);border-radius:4px}
+.mode-toggle-label{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:2px;flex:1}
+.mode-toggle-btns{display:flex;gap:0;border:1px solid var(--border2);border-radius:3px;overflow:hidden}
+.mode-btn{padding:6px 14px;background:transparent;border:none;font-family:'Orbitron',monospace;font-size:9px;letter-spacing:1px;cursor:pointer;color:var(--text3);transition:all .15s}
+.mode-btn.active{background:var(--green);color:#000;font-weight:700}
+.advanced-field{display:none}
+body.mode-advanced .advanced-field{display:block}
+
+/* ── COMPONENT LIBRARY MODAL (v1.0) ───────────────────────── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9000;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--bg2);border:1px solid var(--border2);border-radius:6px;width:min(720px,96vw);max-height:85vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.modal-title{font-family:'Orbitron',monospace;font-size:12px;letter-spacing:3px;color:var(--green);flex:1}
+.modal-close{background:none;border:none;color:var(--text3);font-size:20px;cursor:pointer;padding:0 4px;transition:color .15s}
+.modal-close:hover{color:var(--red)}
+.modal-search{padding:12px 20px;border-bottom:1px solid var(--border)}
+.modal-search input{width:100%;padding:8px 14px;background:var(--bg);border:1px solid var(--border2);border-radius:3px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:13px;outline:none}
+.modal-search input:focus{border-color:var(--green)}
+.modal-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 20px;gap:0}
+.modal-tab{padding:10px 16px;background:none;border:none;border-bottom:2px solid transparent;font-family:'Orbitron',monospace;font-size:9px;letter-spacing:1px;color:var(--text3);cursor:pointer;transition:all .15s}
+.modal-tab.active{color:var(--green);border-bottom-color:var(--green)}
+.modal-body{overflow-y:auto;padding:16px 20px;flex:1}
+.comp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.comp-card{padding:12px;border:1px solid var(--border2);border-radius:4px;background:var(--bg);cursor:pointer;transition:all .15s}
+.comp-card:hover{border-color:var(--green);background:rgba(0,255,136,.04)}
+.comp-name{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text);margin-bottom:6px;font-weight:600}
+.comp-specs{font-size:11px;color:var(--text3);line-height:1.6}
+.comp-tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:2px;border:1px solid var(--border2);color:var(--text3);margin-top:4px;margin-right:3px}
+
+/* ── WIND PROFILE VISUAL (v1.0) ─────────────────────────────── */
+.wind-profile-bar{display:flex;align-items:center;gap:8px;margin-bottom:4px;font-family:'Share Tech Mono',monospace;font-size:11px}
+.wind-profile-bar .alt-label{width:40px;color:var(--text3);text-align:right}
+.wind-profile-bar .bar-wrap{flex:1;height:8px;background:var(--border);border-radius:2px;overflow:hidden}
+.wind-profile-bar .bar-fill{height:100%;background:var(--blue);border-radius:2px;transition:width .4s}
+.wind-profile-bar .spd-label{width:45px;color:var(--blue)}
+
+/* ── MODEL CONFIDENCE BADGE (v1.0) ─────────────────────────── */
+.confidence-badge{display:inline-flex;align-items:center;gap:5px;font-family:'Share Tech Mono',monospace;font-size:10px;padding:2px 8px;border-radius:2px;letter-spacing:1px}
+.confidence-high{background:rgba(0,255,136,.1);color:var(--green);border:1px solid var(--green2)}
+.confidence-med{background:rgba(255,170,0,.1);color:var(--amber);border:1px solid var(--amber)}
+.confidence-low{background:rgba(255,51,68,.1);color:var(--red);border:1px solid var(--red)}
+
+/* ── THERMAL CHART (v1.0) ───────────────────────────────────── */
+.thermal-timeline{display:flex;align-items:flex-end;gap:3px;height:60px;padding:4px 0;overflow:hidden}
+.thermal-bar-item{flex:1;border-radius:2px 2px 0 0;min-width:6px;transition:background .3s;position:relative}
+.thermal-bar-item:hover::after{content:attr(data-tip);position:absolute;bottom:105%;left:50%;transform:translateX(-50%);background:var(--bg3);border:1px solid var(--border2);border-radius:3px;padding:3px 7px;font-size:10px;color:var(--text);white-space:nowrap;pointer-events:none;z-index:10}
+
+@media(max-width:768px){
+  .grid-2,.grid-3,.grid-4,.pid-grid,.filter-grid{grid-template-columns:1fr}
+  .mission-type-grid{grid-template-columns:1fr}
+  .philosophy-cols{grid-template-columns:1fr}
+  .steps-nav{flex-wrap:wrap}
+  .comp-grid{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+<div class="container">
+
+<!-- HEADER -->
+<header>
+  <div>
+    <div class="logo">FPV·<span>PID</span>·CALC</div>
+    <div class="version">INTEL·ASSISTANT // v1.0.0 // Kolumb 369</div>
+  </div>
+  <div class="status-bar">
+    <div class="status-dot"></div>
+    <span id="header-status-text" style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text3);letter-spacing:2px">СИМУЛЯЦІЯ / OFFLINE</span>
+  </div>
+</header>
+
+<!-- ── MODE TOGGLE (v1.0) ────────────────────────────────────── -->
+<div class="mode-toggle">
+  <span class="mode-toggle-label">⚙️ РЕЖИМ ВВЕДЕННЯ ДАНИХ</span>
+  <div class="mode-toggle-btns">
+    <button class="mode-btn active" id="btn-simple" onclick="setMode('simple')">🟢 ПРОСТИЙ</button>
+    <button class="mode-btn" id="btn-advanced" onclick="setMode('advanced')">🔬 РОЗШИРЕНИЙ</button>
+  </div>
+  <button class="btn btn-secondary" style="padding:6px 16px;font-size:10px;margin-left:12px" onclick="openLibrary()">📦 БАЗА КОМПОНЕНТІВ</button>
+</div>
+
+<!-- ── COMPONENT LIBRARY MODAL (v1.0) ───────────────────────── -->
+<div class="modal-overlay" id="comp-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span style="font-size:18px">📦</span>
+      <span class="modal-title">БАЗА КОМПОНЕНТІВ // FPV LIBRARY</span>
+      <button class="modal-close" onclick="closeLibrary()">✕</button>
+    </div>
+    <div class="modal-search">
+      <input type="text" id="lib-search" placeholder="Пошук за назвою або параметрами..." oninput="filterLibrary()">
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchLibTab('motors',this)">🔩 МОТОРИ</button>
+      <button class="modal-tab" onclick="switchLibTab('props',this)">🌀 ПРОПЕЛЕРИ</button>
+      <button class="modal-tab" onclick="switchLibTab('batteries',this)">🔋 БАТАРЕЇ</button>
+      <button class="modal-tab" onclick="switchLibTab('escs',this)">⚡ ESC</button>
+    </div>
+    <div class="modal-body" id="lib-body"></div>
+  </div>
+</div>
+
+<!-- STEPS NAV -->
+<div class="steps-nav">
+  <button class="step-btn active" onclick="goStep(1)"><span class="num">01</span><span>ДАНІ</span></button>
+  <button class="step-btn" onclick="goStep(2)"><span class="num">02</span><span>АНАЛІЗ</span></button>
+  <button class="step-btn" onclick="goStep(3)"><span class="num">03</span><span>МІСІЯ</span></button>
+  <button class="step-btn" onclick="goStep(4)"><span class="num">04</span><span>РОЗРАХУНОК</span></button>
+  <button class="step-btn" onclick="goStep(5)"><span class="num">05</span><span>РЕЗУЛЬТАТ</span></button>
+</div>
+
+<!-- ══════════════════════════════════════════
+     STEP 1: ПІДКЛЮЧЕННЯ ТА ЗБІР ДАНИХ
+═══════════════════════════════════════════ -->
+<div class="panel active" id="step1">
+  <div class="philosophy">
+    <div class="philosophy-title">// ФІЛОСОФІЯ: ЛЮДИНА + МАШИНА</div>
+    <div class="philosophy-cols">
+      <div class="philosophy-col">
+        <h4>ЛЮДИНА — СТРАТЕГІЯ</h4>
+        <ul>
+          <li>Введення цілей місії та типу операції</li>
+          <li>Вибір комплектуючих (пропелери, батарея)</li>
+          <li>Оцінка умов (вітер, температура, знос)</li>
+          <li>Фінальна інтерпретація та прийняття рішень</li>
+        </ul>
+      </div>
+      <div class="philosophy-col">
+        <h4>МАШИНА — ТАКТИКА</h4>
+        <ul>
+          <li>FFT-аналіз логу: резонанс, шум, IR батареї</li>
+          <li>Фізичні розрахунки: ρ повітря, інерція, TWR</li>
+          <li>30+ узгоджених параметрів під тип місії</li>
+          <li>CLI-команди: 1 або 2 профілі для Betaflight</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-icon">📡</span>
+        <span class="card-title">ПІДКЛЮЧЕННЯ ДО КОНТРОЛЕРА</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.6">Під'єднайте дрон через USB для автоматичного зчитування поточних PID, версії прошивки та конфігурації фільтрів.</p>
+        <div style="margin-bottom:14px;padding:10px 14px;background:rgba(0,170,255,.06);border:1px solid var(--blue);border-radius:3px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--blue);line-height:1.6">
+          ℹ️ Потрібно: <strong>Chrome або Edge</strong> · відкрити як <strong>HTTPS або localhost</strong> (не file://) · Betaflight Configurator — <strong>закрити</strong> перед підключенням
+        </div>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:12px" onclick="simulateConnect(event)">⚡ ЗЧИТАТИ З КОНТРОЛЕРА (MSP)</button>
+        <div id="connect-status" style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text3);text-align:center;min-height:20px"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-icon">📁</span>
+        <span class="card-title">ЛОГ ЧОРНОЇ СКРИНЬКИ</span>
+      </div>
+      <div class="card-body">
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('log-file').click()">
+          <div class="icon">🗂</div>
+          <div class="title">ЗАВАНТАЖИТИ .BBL / .CSV</div>
+          <div class="sub">або перетягніть файл сюди</div>
+        </div>
+        <input type="file" id="log-file" accept=".bbl,.csv,.txt" style="display:none" onchange="handleFile(this)">
+        <div id="file-status" style="margin-top:10px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text3);text-align:center"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="current-pid-card" style="display:none">
+    <div class="card-header">
+      <span class="card-icon">🔧</span>
+      <span class="card-title">ЗЧИТАНІ ПОТОЧНІ НАЛАШТУВАННЯ</span>
+    </div>
+    <div class="card-body">
+      <div class="grid-3">
+        <div style="text-align:center"><div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:8px">ROLL P/I/D</div><div style="font-family:'Orbitron',monospace;font-size:20px;color:#ff6644">42 / 35 / 25</div></div>
+        <div style="text-align:center"><div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:8px">PITCH P/I/D</div><div style="font-family:'Orbitron',monospace;font-size:20px;color:var(--amber)">42 / 35 / 25</div></div>
+        <div style="text-align:center"><div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:8px">YAW P/I/D</div><div style="font-family:'Orbitron',monospace;font-size:20px;color:var(--blue)">45 / 45 / 0</div></div>
+      </div>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);display:flex;gap:24px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text3);flex-wrap:wrap">
+        <span>BF: <span style="color:var(--green)">4.4.2</span></span>
+        <span>GYRO LPF: <span style="color:var(--green)">200 Гц</span></span>
+        <span>DTERM LPF: <span style="color:var(--green)">160 Гц</span></span>
+        <span>BLACKBOX: <span style="color:var(--green)">АКТИВНО</span></span>
+        <span>ПРОФІЛІВ: <span style="color:var(--green)">1</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-primary" onclick="goStep(2)">ДАЛІ: АНАЛІЗ →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     STEP 2: АНАЛІЗ ЧОРНОЇ СКРИНЬКИ
+═══════════════════════════════════════════ -->
+<div class="panel" id="step2">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🔬</span>
+      <span class="card-title">АНАЛІЗ ЧОРНОЇ СКРИНЬКИ</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.6">
+        Глибокий аналіз логу польоту. Результати прямо впливають на розрахунок PID: лінійність моторів знижує P при відхиленнях, шумовий поріг D-term визначає агресивність фільтрів.
+      </p>
+      <button class="btn btn-primary" id="analyze-btn" onclick="runAnalysis()">⚡ ЗАПУСТИТИ АНАЛІЗ ЛОГУ</button>
+
+      <div class="analyze-progress" id="analyze-progress">
+        <div style="margin-bottom:8px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text3);letter-spacing:3px">ПРОГРЕС АНАЛІЗУ</div>
+        <div class="analyze-step"><div class="analyze-step-icon pending" id="asi1">○</div><div class="analyze-step-text" id="ast1">2.1 // Валідація логу — перевірка каналів gyro / accel / motor / rpm</div></div>
+        <div class="analyze-step"><div class="analyze-step-icon pending" id="asi2">○</div><div class="analyze-step-text" id="ast2">2.2 // Спектральний FFT-аналіз — Roll / Pitch / Yaw, пошук резонансних піків</div></div>
+        <div class="analyze-step"><div class="analyze-step-icon pending" id="asi3">○</div><div class="analyze-step-text" id="ast3">2.3 // Аналіз лінійності моторів: RPM vs Throttle, виявлення десинхрону</div></div>
+        <div class="analyze-step"><div class="analyze-step-icon pending" id="asi4">○</div><div class="analyze-step-text" id="ast4">2.4 // Визначення IR батареї: R = dV / dI при різких стрибках газу</div></div>
+        <div class="analyze-step"><div class="analyze-step-icon pending" id="asi5">○</div><div class="analyze-step-text" id="ast5">2.5 // Профіль струму — крейсерський струм, шумовий поріг D-term</div></div>
+      </div>
+
+      <div id="analysis-results" style="display:none;margin-top:24px">
+      <!-- Попередження: дані симульовані -->
+      <div id="analysis-sim-badge" class="warning caution" style="display:none;margin-bottom:12px">
+        <span class="warning-icon">⚠️</span>
+        <span class="warning-text"><strong>Симульовані дані.</strong> Аналіз згенеровано автоматично на основі параметрів. Для точного аналізу завантажте реальний Blackbox-лог із Betaflight.</span>
+      </div>
+        <div class="section-divider">РЕЗУЛЬТАТИ АНАЛІЗУ — ВПЛИВ НА PID</div>
+        <div class="analysis-item">
+          <div class="analysis-icon">📊</div>
+          <div class="analysis-label">Резонансна частота рами (FFT пік)</div>
+          <div class="analysis-bar"><div class="analysis-bar-fill" style="width:72%"></div></div>
+          <div class="analysis-value" id="ar-freq">180 Гц</div>
+        </div>
+        <div class="analysis-item">
+          <div class="analysis-icon">🔋</div>
+          <div class="analysis-label">Внутрішній опір батареї (IR)</div>
+          <div class="analysis-bar"><div class="analysis-bar-fill" style="width:45%"></div></div>
+          <div class="analysis-value" id="ar-ir">28 мОм</div>
+        </div>
+        <div class="analysis-item">
+          <div class="analysis-icon">⚡</div>
+          <div class="analysis-label">Крейсерський струм</div>
+          <div class="analysis-bar"><div class="analysis-bar-fill" style="width:58%"></div></div>
+          <div class="analysis-value" id="ar-current">14.5 A</div>
+        </div>
+        <div class="analysis-item">
+          <div class="analysis-icon">🌀</div>
+          <div class="analysis-label">Лінійність моторів → корекція P-term</div>
+          <div class="analysis-bar"><div class="analysis-bar-fill" id="ar-motor-bar" style="width:88%"></div></div>
+          <div class="analysis-value" id="ar-motor">Добра (+0%)</div>
+        </div>
+        <div class="analysis-item">
+          <div class="analysis-icon">📉</div>
+          <div class="analysis-label">Шумовий поріг D-term → агресивність фільтрів</div>
+          <div class="analysis-bar"><div class="analysis-bar-fill" id="ar-noise-bar" style="width:35%"></div></div>
+          <div class="analysis-value" id="ar-noise">Низький (norm)</div>
+        </div>
+
+        <div style="margin-top:16px;padding:14px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text3);line-height:1.8">
+          <span style="color:var(--green)">▶</span> Усі ці значення автоматично враховуються у Кроці 4 при розрахунку PID.<br>
+          <span style="color:var(--amber)">▶</span> Якщо лінійність моторів погана — P знижується на 10–15%.<br>
+          <span style="color:var(--blue)">▶</span> Якщо шумовий поріг високий — фільтри стають агресивнішими (−20% від частоти зрізу).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-secondary" onclick="goStep(1)">← НАЗАД</button>
+    <button class="btn btn-primary" onclick="goStep(3)">ДАЛІ: МІСІЯ →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     STEP 3: ПАРАМЕТРИ МІСІЇ
+═══════════════════════════════════════════ -->
+<div class="panel" id="step3">
+
+  <!-- TИП МІСІЇ -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🎯</span>
+      <span class="card-title">ТИП МІСІЇ</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+        Визначає весь набір PID-коефіцієнтів, feedforward, фільтри та кількість профілів. Камікадзе і бомбер — діаметрально протилежні налаштування.
+      </p>
+      <div class="mission-type-grid">
+        <div class="mission-type-card selected-normal" id="mt-normal" onclick="selectMission('normal')">
+          <div class="selected-check" style="color:var(--green)">✓</div>
+          <div class="type-icon">🛸</div>
+          <div class="type-name">STANDARD</div>
+          <div class="type-desc">Розвідка, спостереження, рейди, загальне FPV</div>
+          <div class="type-params">
+            P: базовий<br>
+            I: помірний<br>
+            FF: середній<br>
+            ПРОФІЛІВ: 1
+          </div>
+        </div>
+        <div class="mission-type-card" id="mt-kamikaze" onclick="selectMission('kamikaze')">
+          <div class="selected-check" style="color:var(--red)">✓</div>
+          <div class="type-icon">💥</div>
+          <div class="type-name" style="color:var(--text2)">КАМІКАДЗЕ</div>
+          <div class="type-desc">Максимальна агресивність, мінімальні затримки, швидкий відгук</div>
+          <div class="type-params">
+            P: +30%<br>
+            FF: ×1.4 (менше фільтрів)<br>
+            I: знижений<br>
+            ПРОФІЛІВ: 1
+          </div>
+        </div>
+        <div class="mission-type-card" id="mt-bomber" onclick="selectMission('bomber')">
+          <div class="selected-check" style="color:var(--amber)">✓</div>
+          <div class="type-icon">💣</div>
+          <div class="type-name" style="color:var(--text2)">БОМБЕР</div>
+          <div class="type-desc">Стабільність, компенсація скидання вантажу, два профілі CG</div>
+          <div class="type-params">
+            P: знижений<br>
+            I: +40% AntiGrav<br>
+            FF: знижений<br>
+            ПРОФІЛІВ: 2 (до/після)
+          </div>
+        </div>
+      </div>
+      <div id="mission-type-hint" style="margin-top:12px;padding:10px 14px;background:rgba(0,255,136,.05);border:1px solid var(--border2);border-radius:3px;font-size:13px;color:var(--text2)">
+        ℹ️ <strong style="color:var(--green)">Standard</strong> — збалансований профіль. Один набір PID.
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <!-- ПАРАМЕТРИ ДРОНА -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-icon">🚁</span>
+        <span class="card-title">ПАРАМЕТРИ ДРОНА</span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>Вага дрона (без батареї та вантажу)</label>
+          <div class="unit"><input type="number" id="w_drone" value="350" min="100" max="10000"><span class="unit-label">г</span></div>
+        </div>
+        <div class="field">
+          <label>Вага акумулятора</label>
+          <div class="unit"><input type="number" id="w_battery" value="650" min="50" max="5000"><span class="unit-label">г</span></div>
+        </div>
+        <div class="field">
+          <label>Вага корисного навантаження / боєприпасу</label>
+          <div class="unit"><input type="number" id="w_payload" value="1000" min="0" max="20000"><span class="unit-label">г</span></div>
+        </div>
+        <div class="field">
+          <label>Максимальна сумарна тяга (паспорт)</label>
+          <div class="unit"><input type="number" id="max_thrust" value="4500" min="500" max="50000"><span class="unit-label">г</span></div>
+          <div class="field-hint">Де брати: специфікація мотора × кількість. Наприклад: 1125 г × 4 = 4500 г</div>
+        </div>
+        <div class="field advanced-field">
+          <label>Плече мотора (від центру до мотора)</label>
+          <div class="unit"><input type="number" id="motor_arm" value="150" min="50" max="600"><span class="unit-label">мм</span></div>
+          <div class="field-hint">Впливає на момент інерції — розрахунок P для roll/pitch. Для 7" ≈ 130–170 мм</div>
+        </div>
+        <div class="field">
+          <label>Тип рами</label>
+          <select id="frame_type">
+            <option value="open">Відкрита рама (CdS ≈ 0.06 м²)</option>
+            <option value="semi" selected>Напівзакрита (CdS ≈ 0.04 м²)</option>
+            <option value="closed">Закрита / обтічник (CdS ≈ 0.025 м²)</option>
+          </select>
+          <div class="field-hint">Впливає на аеродинамічний опір та крейсерську дальність</div>
+        </div>
+        <div class="field">
+          <label>kV мотора (об/хв/В)</label>
+          <div class="unit"><input type="number" id="motor_kv" value="1700" min="100" max="8000"><span class="unit-label">kV</span></div>
+          <div class="field-hint">Потрібен для ітераційного розрахунку обертів, тяги і струму. Типово: 1200–2400 для 5–7"</div>
+        </div>
+        <div class="field">
+          <label>Опір обмоток мотора (Rm)</label>
+          <div class="unit"><input type="number" id="motor_resistance" value="80" min="10" max="500"><span class="unit-label">мОм</span></div>
+          <div class="field-hint">Зі специфікації мотора або виміряний. Вплив на нагрів та втрати потужності</div>
+        </div>
+        <div class="field advanced-field">
+          <label>Кількість циклів батареї</label>
+          <div class="unit"><input type="number" id="batt_cycles" value="50" min="0" max="2000"><span class="unit-label">цикл</span></div>
+          <div class="field-hint">Деградація ємності: −0.1% на цикл (LiPo). 100 циклів = ~10% втрати</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ПРОПЕЛЕРИ -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-icon">🌀</span>
+        <span class="card-title">ПРОПЕЛЕРИ</span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>Розмір пропелера</label>
+          <select id="prop_size" onchange="onPropSizeChange()">
+            <option value="5">5" (фристайл / рейсинг)</option>
+            <option value="6">6" (crossover)</option>
+            <option value="7" selected>7" (long range mid)</option>
+            <option value="10">10" (long range heavy)</option>
+            <option value="12">12" (великий дрон)</option>
+            <option value="15">15" (важкий дрон 10кг+)</option>
+          </select>
+          <div class="field-hint" id="prop-size-hint">7" — оптимальний баланс дальності та маневровості</div>
+        </div>
+        <div class="field">
+          <label>Крок (pitch), дюйми</label>
+          <div class="unit"><input type="number" id="prop_pitch" value="4" min="2" max="12" step="0.5"><span class="unit-label">"</span></div>
+        </div>
+        <div class="field">
+          <label>Кількість лопатей</label>
+          <select id="prop_blades">
+            <option value="2">2 лопаті (bi-blade)</option>
+            <option value="3" selected>3 лопаті (tri-blade)</option>
+            <option value="4">4 лопаті (quad-blade)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Матеріал</label>
+          <select id="prop_material">
+            <option value="carbon" selected>Карбон — жорсткий, точний відгук</option>
+            <option value="plastic">Пластик — гнучкий, вищий ff_boost</option>
+            <option value="glass">Склопластик — компроміс</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- АКУМУЛЯТОР -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-icon">🔋</span>
+        <span class="card-title">АКУМУЛЯТОР</span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>Кількість банок (S)</label>
+          <select id="batt_s">
+            <option value="4">4S (14.8 V)</option>
+            <option value="6" selected>6S (22.2 V)</option>
+            <option value="8">8S (29.6 V)</option>
+            <option value="12">12S (44.4 V)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Ємність</label>
+          <div class="unit"><input type="number" id="batt_mah" value="8000" min="300" max="50000"><span class="unit-label">mAh</span></div>
+        </div>
+        <div class="field">
+          <label>Максимальний розрядний струм (C-рейтинг)</label>
+          <div class="unit"><input type="number" id="batt_c_rate" value="25" min="5" max="150"><span class="unit-label">C</span></div>
+          <div class="field-hint">Макс. струм = C × ємність(Ач). Напр. 25C × 8Ач = 200А. Якщо розрахований струм більше — КРИТИЧНА помилка</div>
+        </div>
+        <div class="field">
+          <label>Максимальний струм одного ESC</label>
+          <div class="unit"><input type="number" id="esc_max_a" value="45" min="10" max="200"><span class="unit-label">А</span></div>
+          <div class="field-hint">Порівнюється з розрахованим струмом мотора. Типово: 35–65А для 5–10"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- УМОВИ ПОЛЬОТУ -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-icon">🌍</span>
+        <span class="card-title">УМОВИ ПОЛЬОТУ</span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>Дальність місії</label>
+          <div class="unit"><input type="number" id="mission_dist" value="12" min="0.5" max="200"><span class="unit-label">км</span></div>
+        </div>
+        <div class="field">
+          <label>Висота польоту</label>
+          <div class="unit"><input type="number" id="mission_alt" value="300" min="0" max="5000"><span class="unit-label">м</span></div>
+        </div>
+        <div class="field">
+          <label>Швидкість вітру (на висоті місії)</label>
+          <div class="unit"><input type="number" id="wind_speed" value="4" min="0" max="40" oninput="updateWindProfile()"><span class="unit-label">м/с</span></div>
+        </div>
+        <div class="field advanced-field">
+          <label>Профіль вітру по висоті</label>
+          <select id="wind_shear_model" onchange="updateWindProfile()">
+            <option value="constant">Постійний (спрощення, v6)</option>
+            <option value="log" selected>Логарифмічний (приземний шар, типово)</option>
+            <option value="power">Степеневий (відкрита місцевість α=0.14)</option>
+          </select>
+          <div class="field-hint">Швидкість вітру зростає з висотою. Логарифм: v(h)=v₀·ln(h/z₀)/ln(h₀/z₀)</div>
+          <div id="wind-profile-visual" style="margin-top:12px;padding:10px;background:var(--bg);border:1px solid var(--border2);border-radius:3px"></div>
+        </div>
+        <div class="field">
+          <label>Напрямок вітру</label>
+          <select id="wind_dir">
+            <option value="headwind" selected>Зустрічний — компенсація I_pitch</option>
+            <option value="tailwind">Попутній — мінімальний вплив</option>
+            <option value="crosswind">Боковий — компенсація I_roll та I_pitch</option>
+            <option value="angle">Кут вітру (довільний)</option>
+          </select>
+        </div>
+        <div class="field" id="wind-angle-field" style="display:none">
+          <label>Кут вітру відносно курсу</label>
+          <div class="unit"><input type="number" id="wind_angle" value="45" min="0" max="180"><span class="unit-label">°</span></div>
+          <div class="field-hint">0° = зустрічний, 90° = боковий, 180° = попутній</div>
+        </div>
+        <div class="field">
+          <label>Температура повітря</label>
+          <div class="unit"><input type="number" id="temperature" value="5" min="-40" max="50"><span class="unit-label">°C</span></div>
+        </div>
+        <div class="field advanced-field">
+          <label>Відносна вологість</label>
+          <div class="unit"><input type="number" id="humidity" value="60" min="0" max="100"><span class="unit-label">%</span></div>
+          <div class="field-hint">Волога повітря знижує густину до ~1%. Важливо в спеку. 0–30% = сухо, 60–80% = норма, 90%+ = дощ</div>
+        </div>
+        <div class="field">
+          <label>Висота набору (ціль зльоту)</label>
+          <div class="unit"><input type="number" id="climb_alt" value="300" min="0" max="2000"><span class="unit-label">м</span></div>
+          <div class="field-hint">Зазвичай = висоті польоту. Впливає на час зльоту та витрату заряду до крейсеру</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ЗНОС КОМПОНЕНТІВ -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🔩</span>
+      <span class="card-title">ЗНОС КОМПОНЕНТІВ</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+        Після 50+ годин польоту рама жорсткішає у місцях стрес-тріщин, підшипники моторів дають більший люфт — разом це змінює резонансну поведінку та потребує корекції P.
+      </p>
+      <div class="wear-grid" id="wear-selector">
+        <div class="wear-card selected" onclick="selectWear('new', this)">
+          <div class="wear-icon">✨</div>
+          <div class="wear-name">НОВИЙ</div>
+          <div class="wear-hours">0–20 год нальоту</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">P: без змін</div>
+        </div>
+        <div class="wear-card" onclick="selectWear('medium', this)">
+          <div class="wear-icon">⚙️</div>
+          <div class="wear-name">СЕРЕДНІЙ</div>
+          <div class="wear-hours">20–60 год нальоту</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">P: −5%</div>
+        </div>
+        <div class="wear-card" onclick="selectWear('worn', this)">
+          <div class="wear-icon">🔧</div>
+          <div class="wear-name">ЗНОШЕНИЙ</div>
+          <div class="wear-hours">60+ год нальоту</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">P: −12%, D: −5%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-group">
+    <button class="btn btn-secondary" onclick="goStep(2)">← НАЗАД</button>
+    <button class="btn btn-primary" onclick="goStep(4)">РОЗРАХУВАТИ →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     STEP 4: РОЗРАХУНКИ
+═══════════════════════════════════════════ -->
+<div class="panel" id="step4">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">⚙️</span>
+      <span class="card-title">ВНУТРІШНІ РОЗРАХУНКИ</span>
+      <span id="calc-mission-badge" class="card-badge badge-normal" style="margin-left:auto">STANDARD</span>
+    </div>
+    <div class="card-body" id="calc-steps-body">
+      <div style="text-align:center;padding:40px">
+        <button class="btn btn-primary" onclick="runCalculations()" style="font-size:13px;padding:16px 40px">🔥 ЗАПУСТИТИ РОЗРАХУНКИ</button>
+      </div>
+    </div>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-secondary" onclick="goStep(3)">← НАЗАД</button>
+    <button class="btn btn-primary" id="to-results-btn" style="display:none" onclick="goStep(5)">РЕЗУЛЬТАТИ →</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     STEP 5: РЕЗУЛЬТАТИ
+═══════════════════════════════════════════ -->
+<div class="panel" id="step5">
+  <div id="results-container"></div>
+</div>
+
+</div><!-- /container -->
+
+<script>
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// APP STATE — єдине джерело правди для всього застосунку.
+// Замість розсіяних глобальних змінних — один об'єкт.
+// Для зміни стану використовуйте AppState.set(key, value).
+// ═══════════════════════════════════════════════════════════════
+const AppState = (() => {
+  const _state = {
+    currentStep:  1,
+    missionType:  'normal',
+    wearLevel:    'new',
+    appMode:      'simple',   // 'simple' | 'advanced'
+    currentLibTab:'motors',
+    savedProfiles: [],
+    calcResults:  null,
+    analysisData: {
+      resonanceFreq: 180,
+      ir: 28,
+      cruiseCurrent: 14.5,
+      motorLinearity: 'good',  // 'good' | 'poor'
+      dTermNoise: 'low',       // 'low' | 'high'
+    },
+  };
+  return {
+    get: (key) => _state[key],
+    set: (key, value) => { _state[key] = value; },
+    getAll: () => ({ ..._state }),
+  };
+})();
+
+// Зворотна сумісність — проксі-гетери/сетери для плавної міграції
+// (дозволяють старому коду продовжувати читати/писати ці змінні)
+// Зворотна сумісність — прямі змінні-аліаси для AppState
+// (використовуємо function замість shorthand get/set для максимальної сумісності)
+['currentStep','missionType','wearLevel','appMode','currentLibTab','savedProfiles','calcResults','analysisData']
+  .forEach(function(key) {
+    Object.defineProperty(window, key, {
+      get: function() { return AppState.get(key); },
+      set: function(v) { AppState.set(key, v); },
+      configurable: true,
+      enumerable: true
+    });
+  });
+
+// ═══════════════════════════════════════════
+// v1.0 — COMPONENT LIBRARY DATABASE
+// ═══════════════════════════════════════════
+const COMPONENT_DB = {
+  motors: [
+    {name:'T-Motor F80 Pro 1900kV', kv:1900, rm:65, maxA:30, tags:['5in','racing'], note:'Рейсинговий, легкий'},
+    {name:'T-Motor F80 Pro 2500kV', kv:2500, rm:55, maxA:32, tags:['5in','racing'], note:'Висока швидкість'},
+    {name:'EMAX ECO II 2807 1300kV', kv:1300, rm:90, maxA:35, tags:['7in','longrange'], note:'7in Long range'},
+    {name:'EMAX ECO II 2807 1700kV', kv:1700, rm:82, maxA:38, tags:['7in','longrange'], note:'7in Універсал'},
+    {name:'T-Motor MN3510 700kV',    kv:700,  rm:180,maxA:25, tags:['10in','heavy'], note:'Важкий/повільний'},
+    {name:'T-Motor U8II 100kV',      kv:100,  rm:320,maxA:40, tags:['15in','heavy'], note:'Великий дрон'},
+    {name:'BrotherHobby Tornado T5 2550kV', kv:2550, rm:60, maxA:33, tags:['5in','freestyle'], note:'Фристайл'},
+    {name:'Hyperlite Team Edition 2207 2522kV', kv:2522, rm:58, maxA:35, tags:['5in','freestyle'], note:'Преміум'},
+    {name:'iFlight XING2 2306 2450kV', kv:2450, rm:60, maxA:30, tags:['5in','racing'], note:'Бюджетний'},
+    {name:'T-Motor F60 Pro IV 1750kV', kv:1750, rm:72, maxA:36, tags:['6in','allround'], note:'6in Середній'},
+    {name:'EMAX RS2306 2400kV', kv:2400, rm:68, maxA:30, tags:['5in','racing'], note:'Класика рейсингу'},
+    {name:'Sunnysky R2207 2580kV', kv:2580, rm:63, maxA:32, tags:['5in','racing'], note:'Бюджетний рейс'},
+  ],
+  props: [
+    {name:'HQProp 5x4.5x3 Tri', size:5, pitch:4.5, blades:3, material:'plastic', tags:['5in','freestyle'], note:'Класика фристайлу'},
+    {name:'HQProp 5x4x3 Carbon', size:5, pitch:4, blades:3, material:'carbon', tags:['5in','racing'], note:'Карбон, точний'},
+    {name:'Gemfan 7040 Bi', size:7, pitch:4, blades:2, material:'plastic', tags:['7in','longrange'], note:'7in довгий рейнж'},
+    {name:'Gemfan 7040 Tri', size:7, pitch:4, blades:3, material:'plastic', tags:['7in','allround'], note:'7in універсал'},
+    {name:'T-Motor T7156 Carbon', size:7, pitch:5.6, blades:2, material:'carbon', tags:['7in','efficiency'], note:'Ефективність'},
+    {name:'HQProp 10x4.5x3', size:10, pitch:4.5, blades:3, material:'plastic', tags:['10in','heavy'], note:'Вантажний'},
+    {name:'Tarot 1238 Carbon', size:12, pitch:3.8, blades:2, material:'carbon', tags:['12in','heavy'], note:'Карбон 12in'},
+    {name:'T-Motor P15x5 Carbon', size:15, pitch:5, blades:2, material:'carbon', tags:['15in','heavy'], note:'Великий'},
+  ],
+  batteries: [
+    {name:'Tattu R-Line 4S 1550mAh 130C', s:4, mah:1550, c:130, ir:8, weight:185, tags:['5in','racing'], note:'Рейсинг'},
+    {name:'Tattu R-Line 4S 1300mAh 95C',  s:4, mah:1300, c:95, ir:10, weight:155, tags:['5in','freestyle'], note:'Фристайл'},
+    {name:'CNHL 6S 3000mAh 100C', s:6, mah:3000, c:100, ir:15, weight:395, tags:['6in','7in'], note:'6S універсал'},
+    {name:'Tattu 6S 6000mAh 25C', s:6, mah:6000, c:25, ir:22, weight:780, tags:['7in','longrange'], note:'LR 7in'},
+    {name:'Tattu 6S 8000mAh 25C', s:6, mah:8000, c:25, ir:25, weight:920, tags:['7in','longrange'], note:'LR 7in макс.'},
+    {name:'HRB 6S 12000mAh 20C', s:6, mah:12000, c:20, ir:30, weight:1250, tags:['10in','heavy'], note:'Вантажний'},
+    {name:'Gens Ace 6S 16000mAh 15C', s:6, mah:16000, c:15, ir:35, weight:1680, tags:['12in','heavy'], note:'Великий'},
+    {name:'Tattu 6S 22000mAh 10C', s:6, mah:22000, c:10, ir:45, weight:2100, tags:['15in','heavy'], note:'Дуже великий'},
+  ],
+  escs: [
+    {name:'Aikon AK32Pin 45A BLHeli_32', maxA:45, burstA:55, tags:['5in','6in'], note:'32-bit, RPM filter'},
+    {name:'T-Motor F55A 4in1 BLHeli_32', maxA:55, burstA:65, tags:['6in','7in'], note:'4-in-1 компактний'},
+    {name:'Hobbywing XRotor 40A BLHeli_S', maxA:40, burstA:50, tags:['5in','freestyle'], note:'Бюджетний'},
+    {name:'T-Motor AM35A 35A BLHeli_32', maxA:35, burstA:45, tags:['5in','racing'], note:'Рейсинговий'},
+    {name:'Flycolor X-Tower 60A BLHeli_32', maxA:60, burstA:75, tags:['7in','heavy'], note:'7in heavy'},
+    {name:'Zubax Myxa 80A',               maxA:80, burstA:100, tags:['10in','heavy'], note:'FOC, великий дрон'},
+  ],
+};
+
+// ═══════════════════════════════════════════
+// v1.0 — MODE TOGGLE
+// ═══════════════════════════════════════════
+function setMode(mode) {
+  appMode = mode;
+  document.body.classList.toggle('mode-advanced', mode === 'advanced');
+  document.getElementById('btn-simple').classList.toggle('active', mode === 'simple');
+  document.getElementById('btn-advanced').classList.toggle('active', mode === 'advanced');
+  if (mode === 'advanced') updateWindProfile();
+}
+
+// ═══════════════════════════════════════════
+// v1.0 — COMPONENT LIBRARY
+// ═══════════════════════════════════════════
+function openLibrary() {
+  document.getElementById('comp-modal').classList.add('open');
+  renderLibrary();
+}
+function closeLibrary() {
+  document.getElementById('comp-modal').classList.remove('open');
+  // Повертаємо фокус на кнопку, яка відкрила модалку (accessibility)
+  const trigger = document.getElementById('open-library-btn');
+  if (trigger) trigger.focus();
+}
+function switchLibTab(tab, el) {
+  currentLibTab = tab;
+  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderLibrary();
+}
+function filterLibrary() { renderLibrary(); }
+
+function renderLibrary() {
+  const q = (document.getElementById('lib-search')?.value || '').toLowerCase();
+  const data = COMPONENT_DB[currentLibTab] || [];
+  const filtered = q ? data.filter(function(item) {
+    return item.name.toLowerCase().includes(q) ||
+      (item.tags||[]).some(function(t){ return t.includes(q); }) ||
+      (item.note||'').toLowerCase().includes(q);
+  }) : data;
+
+  const body = document.getElementById('lib-body');
+  if(!filtered.length) { body.innerHTML = '<div style="color:var(--text3);padding:20px;text-align:center">Нічого не знайдено</div>'; return; }
+
+  // Store filtered data in a module-level map keyed by index to avoid JSON-in-HTML issues
+  window._libFiltered = filtered;
+
+  const html = '<div class="comp-grid">' + filtered.map((c, idx) => {
+    let specs = '';
+    if(currentLibTab === 'motors')     specs = 'kV: <b style="color:var(--green)">' + c.kv + '</b> | Rm: <b style="color:var(--amber)">' + c.rm + ' мОм</b> | Max: ' + c.maxA + 'А';
+    if(currentLibTab === 'props')      specs = c.size + '" / P' + c.pitch + ' / ' + c.blades + 'L / ' + c.material;
+    if(currentLibTab === 'batteries')  specs = c.s + 'S / ' + c.mah + 'mAh / ' + c.c + 'C<br>IR≈' + c.ir + 'мОм | ~' + c.weight + 'г';
+    if(currentLibTab === 'escs')       specs = 'Max: <b style="color:var(--green)">' + c.maxA + 'А</b> (burst ' + c.burstA + 'А)';
+    const tagsHtml = (c.tags||[]).map(t => '<span class="comp-tag">' + t + '</span>').join('');
+    return '<div class="comp-card" onclick="applyComponentByIndex(' + idx + ')" title="Натисніть щоб підставити значення">'
+      + '<div class="comp-name">' + c.name + '</div>'
+      + '<div class="comp-specs">' + specs + '</div>'
+      + (c.note ? '<div style="font-size:11px;color:var(--amber);margin-top:4px">' + c.note + '</div>' : '')
+      + '<div style="margin-top:6px">' + tagsHtml + '</div>'
+      + '</div>';
+  }).join('') + '</div>';
+  body.innerHTML = html;
+}
+
+function applyComponentByIndex(idx) {
+  const c = window._libFiltered && window._libFiltered[idx];
+  if(!c) return;
+  applyComponent(currentLibTab, c);
+}
+
+function applyComponent(tab, c) {
+  if(tab === 'motors') {
+    if(document.getElementById('motor_kv')) document.getElementById('motor_kv').value = c.kv;
+    if(document.getElementById('motor_resistance')) document.getElementById('motor_resistance').value = c.rm;
+    if(document.getElementById('esc_max_a')) document.getElementById('esc_max_a').value = c.maxA + 5;
+  } else if(tab === 'props') {
+    if(document.getElementById('prop_size')) { document.getElementById('prop_size').value = c.size; onPropSizeChange(); }
+    if(document.getElementById('prop_pitch')) document.getElementById('prop_pitch').value = c.pitch;
+    if(document.getElementById('prop_blades')) document.getElementById('prop_blades').value = c.blades;
+    if(document.getElementById('prop_material')) document.getElementById('prop_material').value = c.material;
+  } else if(tab === 'batteries') {
+    if(document.getElementById('batt_s')) document.getElementById('batt_s').value = c.s;
+    if(document.getElementById('batt_mah')) document.getElementById('batt_mah').value = c.mah;
+    if(document.getElementById('batt_c_rate')) document.getElementById('batt_c_rate').value = c.c;
+    if(document.getElementById('w_battery')) document.getElementById('w_battery').value = c.weight;
+    analysisData.ir = c.ir;
+  } else if(tab === 'escs') {
+    if(document.getElementById('esc_max_a')) document.getElementById('esc_max_a').value = c.maxA;
+  }
+  closeLibrary();
+  const flash = document.createElement('div');
+  flash.textContent = '✅ ' + c.name + ' — підставлено';
+  flash.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--green);color:var(--green);font-family:"Share Tech Mono",monospace;font-size:12px;padding:10px 18px;border-radius:4px;z-index:9999;transition:opacity .4s';
+  document.body.appendChild(flash);
+  setTimeout(function(){ flash.style.opacity='0'; setTimeout(function(){ flash.remove(); }, 500); }, 2500);
+}
+
+// ═══════════════════════════════════════════
+// v1.0 — WIND PROFILE VISUALIZATION
+// ═══════════════════════════════════════════
+function windSpeedAtAlt(v0, h, model, h0=10) {
+  if(!h || h <= 0) return v0;
+  const z0 = 0.1; // roughness length urban
+  if(model === 'log')    return v0 * Math.log(Math.max(h, z0+0.01) / z0) / Math.log(Math.max(h0, z0+0.01) / z0);
+  if(model === 'power')  return v0 * Math.pow(h / h0, 0.14);
+  return v0; // constant
+}
+
+function updateWindProfile() {
+  const el = document.getElementById('wind-profile-visual');
+  if(!el) return;
+  const v0 = parseFloat(document.getElementById('wind_speed')?.value) || 4;
+  const model = document.getElementById('wind_shear_model')?.value || 'log';
+  const alts = [10, 50, 100, 200, 300, 500];
+  const speeds = alts.map(h => windSpeedAtAlt(v0, h, model));
+  const maxSpd = Math.max(...speeds, 1);
+
+  el.innerHTML = '<div style="font-family:\'Share Tech Mono\',monospace;font-size:10px;color:var(--text3);margin-bottom:8px;letter-spacing:2px">ПРОФІЛЬ ВІТРУ ПО ВИСОТІ</div>'
+    + alts.map(function(h, i) {
+      var spd = speeds[i];
+      var pct = Math.round((spd / maxSpd) * 100);
+      return '<div class="wind-profile-bar">'
+        + '<span class="alt-label">' + h + 'м</span>'
+        + '<div class="bar-wrap"><div class="bar-fill" style="width:' + pct + '%"></div></div>'
+        + '<span class="spd-label">' + spd.toFixed(1) + ' м/с</span>'
+        + '</div>';
+    }).join('');
+}
+
+
+
+// ═══════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════
+function goStep(n) {
+  document.querySelectorAll('.panel').forEach((p,i) => p.classList.toggle('active', i+1 === n));
+  document.querySelectorAll('.step-btn').forEach((b,i) => {
+    b.classList.remove('active','done');
+    if(i+1 === n) b.classList.add('active');
+    else if(i+1 < n) b.classList.add('done');
+  });
+  currentStep = n;
+  if(n === 4) {
+    const badges = {normal:'badge-normal', kamikaze:'badge-kamikaze', bomber:'badge-bomber'};
+    const labels = {normal:'STANDARD', kamikaze:'КАМІКАДЗЕ', bomber:'БОМБЕР'};
+    const badge = document.getElementById('calc-mission-badge');
+    badge.className = 'card-badge ' + badges[missionType];
+    badge.textContent = labels[missionType];
+    // Авто-розрахунок тільки при першому відвідуванні кроку 4.
+    // При поверненні назад (calcResults вже є) — не перезапускаємо,
+    // щоб не затирати результати непомітно для користувача.
+    if (!calcResults) setTimeout(runCalculations, 300);
+  }
+  if(n === 5) renderResults();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// ═══════════════════════════════════════════
+// MISSION TYPE SELECTOR
+// ═══════════════════════════════════════════
+function selectMission(type) {
+  missionType = type;
+  ['normal','kamikaze','bomber'].forEach(t => {
+    const el = document.getElementById('mt-'+t);
+    el.className = 'mission-type-card' + (t === type ? ' selected-'+type : '');
+    el.querySelector('.type-name').style.color = '';
+  });
+
+  const hints = {
+    normal: 'ℹ️ <strong style="color:var(--green)">Standard</strong> — збалансований профіль. Один набір PID.',
+    kamikaze: '⚠️ <strong style="color:var(--red)">Камікадзе</strong> — вищі P (+30%), вищий FF (×1.4), слабші фільтри. Один профіль. Максимальна агресивність.',
+    bomber: '💣 <strong style="color:var(--amber)">Бомбер</strong> — <strong>два профілі</strong>: Profile 1 (з вантажем) і Profile 2 (без). Після скидання CG зміщується — потрібні нові PID. Перемикання тумблером.',
+  };
+  document.getElementById('mission-type-hint').innerHTML = hints[type];
+}
+
+// ═══════════════════════════════════════════
+// WEAR SELECTOR
+// ═══════════════════════════════════════════
+function selectWear(level, el) {
+  wearLevel = level;
+  document.querySelectorAll('.wear-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ═══════════════════════════════════════════
+// WIND DIRECTION / ANGLE TOGGLE
+// ═══════════════════════════════════════════
+document.getElementById('wind_dir').addEventListener('change', function() {
+  document.getElementById('wind-angle-field').style.display = this.value === 'angle' ? 'block' : 'none';
+});
+
+// ═══════════════════════════════════════════
+// PROP SIZE HINTS
+// ═══════════════════════════════════════════
+function onPropSizeChange() {
+  const hints = {
+    5:'5" — рейсинг/фристайл, висока маневровість, малий час польоту',
+    6:'6" — crossover, баланс між фристайлом і дальністю',
+    7:'7" — оптимальний баланс дальності та маневровості для місій',
+    10:'10" — великий дрон, висока інерція: P буде знижено на 25%',
+    12:'12" — важкий дрон: P −30%, I +20%, особлива логіка',
+    15:'15" — дуже важкий: P −40%, потребує ручного підбору після розрахунку',
+  };
+  const v = document.getElementById('prop_size').value;
+  document.getElementById('prop-size-hint').textContent = hints[v] || '';
+}
+
+// ═══════════════════════════════════════════
+// STEP 1: REAL WebSerial MSP CONNECTION
+// ═══════════════════════════════════════════
+
+// MSP command IDs
+const MSP = {
+  API_VERSION:    1,
+  FC_VARIANT:     2,
+  FC_VERSION:     3,
+  PID:           112,
+  FILTER_CONFIG: 92,
+  FEATURE:       36,
+  STATUS:         1,
+  STATUS_EX:    150,
+};
+
+// Build MSP v1 request packet
+function mspRequest(cmd) {
+  // $M< + size(0) + cmd + checksum
+  const buf = new Uint8Array(6);
+  buf[0] = 0x24; // $
+  buf[1] = 0x4D; // M
+  buf[2] = 0x3C; // <
+  buf[3] = 0;    // size
+  buf[4] = cmd;
+  buf[5] = cmd;  // checksum = size XOR cmd = 0 XOR cmd
+  return buf;
+}
+
+// Parse MSP v1 response; returns {cmd, payload} or null
+function parseMSPResponse(buf) {
+  // Find $ M > in buffer
+  for (let i = 0; i < buf.length - 5; i++) {
+    if (buf[i]===0x24 && buf[i+1]===0x4D && buf[i+2]===0x3E) {
+      const size = buf[i+3];
+      const cmd  = buf[i+4];
+      if (buf.length < i + 5 + size + 1) return null;
+      const payload = buf.slice(i+5, i+5+size);
+      return { cmd, payload };
+    }
+  }
+  return null;
+}
+
+// Read bytes from serial until we see a complete MSP response or timeout
+async function readMSP(reader, timeoutMs=2000) {
+  const chunks = [];
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const { value, done } = await Promise.race([
+      reader.read(),
+      new Promise(r => setTimeout(()=>r({value:null,done:true}), 200))
+    ]);
+    if (done || !value) {
+      // Check what we have so far
+      const all = new Uint8Array(chunks.reduce((a,c)=>a+c.length,0));
+      let off=0; for(const c of chunks){all.set(c,off);off+=c.length;}
+      const res = parseMSPResponse(all);
+      if (res) return res;
+      if (done) break;
+      continue;
+    }
+    chunks.push(value);
+    const all = new Uint8Array(chunks.reduce((a,c)=>a+c.length,0));
+    let off=0; for(const c of chunks){all.set(c,off);off+=c.length;}
+    const res = parseMSPResponse(all);
+    if (res) return res;
+  }
+  return null;
+}
+
+let _serialPort = null;
+
+async function simulateConnect(event) {
+  const s   = document.getElementById('connect-status');
+  const btn = event.target;
+
+  // Disconnect if already connected
+  if (_serialPort) {
+    try { await _serialPort.close(); } catch(e){}
+    _serialPort = null;
+    btn.textContent = '⚡ ЗЧИТАТИ З КОНТРОЛЕРА (MSP)';
+    btn.disabled = false;
+    btn.style.borderColor=''; btn.style.color='';
+    s.textContent = 'Відключено.'; s.style.color='var(--text3)';
+    document.getElementById('header-status-text').textContent = 'СИМУЛЯЦІЯ / OFFLINE';
+    return;
+  }
+
+  // Check WebSerial support
+  if (!('serial' in navigator)) {
+    s.innerHTML = '❌ <strong>WebSerial не підтримується.</strong> Відкрийте цей файл у Chrome або Edge (не Firefox/Safari). ' +
+      'Також потрібен HTTPS або localhost — не підходить <code>file://</code>. ' +
+      'Альтернатива: завантажте .bbl / .csv лог нижче.';
+    s.style.color='var(--red)';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ ВИБІР ПОРТУ...';
+  s.textContent = 'Оберіть COM-порт Betaflight...';
+  s.style.color = 'var(--amber)';
+
+  let port;
+  try {
+    port = await navigator.serial.requestPort();
+  } catch(e) {
+    s.textContent = e.name === 'NotAllowedError'
+      ? '⚠️ Порт не обрано. Натисніть кнопку ще раз і оберіть порт.'
+      : '❌ Помилка: ' + e.message;
+    s.style.color = 'var(--red)';
+    btn.disabled = false;
+    btn.textContent = '⚡ ЗЧИТАТИ З КОНТРОЛЕРА (MSP)';
+    return;
+  }
+
+  try {
+    s.textContent = 'Відкриваю порт (115200 baud)...';
+    await port.open({ baudRate: 115200 });
+    _serialPort = port;
+
+    const writer = port.writable.getWriter();
+    const reader = port.readable.getReader();
+
+    // Helper: send MSP and get response
+    async function query(cmd) {
+      await writer.write(mspRequest(cmd));
+      return await readMSP(reader, 1500);
+    }
+
+    s.textContent = 'MSP handshake — перевірка версії API...';
+    const apiResp = await query(MSP.API_VERSION);
+    if (!apiResp) throw new Error('Немає відповіді від контролера. Перевірте: (1) Betaflight Configurator закрито, (2) правильний COM-порт, (3) дрон увімкнено.');
+
+    s.textContent = 'Зчитую версію прошивки...';
+    const varResp = await query(MSP.FC_VARIANT);
+    const verResp = await query(MSP.FC_VERSION);
+
+    let fcName = 'BTFL';
+    if (varResp && varResp.payload.length >= 4) {
+      fcName = String.fromCharCode(...varResp.payload.slice(0,4));
+    }
+    let fcVer = '?';
+    if (verResp && verResp.payload.length >= 3) {
+      fcVer = verResp.payload[0]+'.'+verResp.payload[1]+'.'+verResp.payload[2];
+    }
+
+    s.textContent = 'Зчитую PID-коефіцієнти...';
+    const pidResp = await query(MSP.PID);
+
+    s.textContent = 'Зчитую налаштування фільтрів...';
+    const filtResp = await query(MSP.FILTER_CONFIG);
+
+    writer.releaseLock();
+    reader.cancel();
+    reader.releaseLock();
+
+    // Parse PID  (MSP_PID: 3 bytes per axis: P I D, order: roll pitch yaw)
+    let rollP=42, rollI=35, rollD=25;
+    let pitchP=42, pitchI=35, pitchD=25;
+    let yawP=45, yawI=45, yawD=0;
+    if (pidResp && pidResp.payload.length >= 9) {
+      const p = pidResp.payload;
+      rollP=p[0];  rollI=p[1];  rollD=p[2];
+      pitchP=p[3]; pitchI=p[4]; pitchD=p[5];
+      yawP=p[6];   yawI=p[7];   yawD=p[8]||0;
+    }
+
+    // Parse filter config (MSP_FILTER_CONFIG)
+    let gyroLPF=200, dtermLPF=160;
+    if (filtResp && filtResp.payload.length >= 5) {
+      const p = filtResp.payload;
+      gyroLPF  = p[1] | (p[2]<<8);  // gyro_lowpass_hz
+      dtermLPF = p[3] | (p[4]<<8);  // dterm_lowpass_hz
+    }
+
+    // Update UI with real data
+    const pidCard = document.getElementById('current-pid-card');
+    pidCard.style.display = 'block';
+    pidCard.querySelector('.grid-3').innerHTML = `
+      <div style="text-align:center">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:8px">ROLL P/I/D</div>
+        <div style="font-family:'Orbitron',monospace;font-size:20px;color:#ff6644">${rollP} / ${rollI} / ${rollD}</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:8px">PITCH P/I/D</div>
+        <div style="font-family:'Orbitron',monospace;font-size:20px;color:var(--amber)">${pitchP} / ${pitchI} / ${pitchD}</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text3);margin-bottom:8px">YAW P/I/D</div>
+        <div style="font-family:'Orbitron',monospace;font-size:20px;color:var(--blue)">${yawP} / ${yawI} / ${yawD}</div>
+      </div>`;
+
+    pidCard.querySelector('div[style*="flex-wrap"]').innerHTML =
+      `<span>FC: <span style="color:var(--green)">${fcName}</span></span>
+       <span>BF: <span style="color:var(--green)">${fcVer}</span></span>
+       <span>GYRO LPF: <span style="color:var(--green)">${gyroLPF} Гц</span></span>
+       <span>DTERM LPF: <span style="color:var(--green)">${dtermLPF} Гц</span></span>`;
+
+    btn.textContent = '🔌 ВІДКЛЮЧИТИ';
+    btn.disabled = false;
+    btn.style.borderColor='var(--green)';
+    btn.style.color='var(--green)';
+    s.textContent = `✅ ${fcName} ${fcVer} — зчитано реальні PID та фільтри`;
+    s.style.color = 'var(--green)';
+    document.getElementById('header-status-text').textContent = `${fcName} ${fcVer} // ONLINE`;
+
+  } catch(e) {
+    s.textContent = '❌ ' + e.message;
+    s.style.color = 'var(--red)';
+    btn.disabled = false;
+    btn.textContent = '⚡ ЗЧИТАТИ З КОНТРОЛЕРА (MSP)';
+    if (_serialPort) { try{ await _serialPort.close(); }catch(ex){} _serialPort=null; }
+  }
+}
+
+function handleFile(input) {
+  if (!input.files[0]) return;
+  const file = input.files[0];
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    await parseBlackboxLog(e.target.result, file.name);
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+const uz = document.getElementById('upload-zone');
+uz.addEventListener('dragover', e=>{ e.preventDefault(); uz.classList.add('drag'); });
+uz.addEventListener('dragleave', ()=>uz.classList.remove('drag'));
+uz.addEventListener('drop', async e=>{
+  e.preventDefault(); uz.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (ev) => {
+    await parseBlackboxLog(ev.target.result, file.name);
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// STEP 2: BLACKBOX ANALYSIS
+// ═══════════════════════════════════════════════════════════════
+
+// ── Крок прогресу ─────────────────────────────────────────────
+function _setAnalysisStep(step, total) {
+  for (let i = 1; i <= total; i++) {
+    const icon = document.getElementById('asi' + i);
+    const text = document.getElementById('ast' + i);
+    if (!icon || !text) continue;
+    if (i < step)       { icon.className = 'analyze-step-icon done';    icon.textContent = '✓'; text.className = 'analyze-step-text done'; }
+    else if (i === step){ icon.className = 'analyze-step-icon running'; icon.textContent = '●'; text.className = 'analyze-step-text running'; }
+    else                { icon.className = 'analyze-step-icon pending'; icon.textContent = '○'; text.className = 'analyze-step-text'; }
+  }
+}
+
+// ── Головна функція парсингу .bbl / .csv ──────────────────────
+// ═══════════════════════════════════════════════════════════════
+// НАТИВНИЙ ПАРСЕР BLACKBOX — без зовнішніх бібліотек
+// Підтримує: .bbl (бінарний Betaflight), .csv (текстовий експорт)
+// Працює повністю офлайн, file:// протокол підтримується
+// ═══════════════════════════════════════════════════════════════
+
+async function parseBlackboxLog(arrayBuffer, fileName) {
+  var statusEl   = document.getElementById('file-status');
+  var progressEl = document.getElementById('analyze-progress');
+  var analyzeBtn = document.getElementById('analyze-btn');
+
+  statusEl.textContent = 'Аналіз файлу ' + fileName + '...';
+  statusEl.style.color = 'var(--amber)';
+  document.getElementById('upload-zone').style.borderColor = 'var(--amber)';
+  analyzeBtn.style.display = 'none';
+  progressEl.classList.add('active');
+  _setAnalysisStep(1, 5);
+
+  try {
+    var ext = fileName.split('.').pop().toLowerCase();
+    var collected;
+
+    if (ext === 'csv' || ext === 'txt') {
+      // ── CSV / TXT: текстовий формат Betaflight Blackbox Explorer ──
+      _setAnalysisStep(1, 5);
+      collected = _parseBBLcsv(arrayBuffer);
+    } else {
+      // ── BBL: бінарний формат — читаємо заголовки і I-frames ──
+      _setAnalysisStep(1, 5);
+      collected = _parseBBLbinary(arrayBuffer);
+    }
+
+    if (!collected || collected.frameCount === 0) {
+      throw new Error('Файл порожній або має непідтримуваний формат. Спробуйте експортувати CSV з Betaflight Blackbox Explorer.');
+    }
+
+    _setAnalysisStep(2, 5);
+    var resonanceFreq = _calculateFFTPeak(collected.gyroRoll, collected.looptimeUs || 125);
+
+    _setAnalysisStep(3, 5);
+    var motorLinearity = _assessMotorLinearity(collected.motorVals, collected.throttleVals);
+
+    _setAnalysisStep(4, 5);
+    var irResult = _calculateBatteryIR(collected.vbatVals, collected.currentVals);
+
+    _setAnalysisStep(5, 5);
+    var dTermNoise    = _assessDtermNoise(collected.gyroRoll);
+    var cruiseCurrent = _calculateCruiseCurrent(collected.currentVals, collected.throttleVals);
+
+    _applyAnalysisResults({
+      resonanceFreq: resonanceFreq,
+      ir: irResult,
+      cruiseCurrent: cruiseCurrent,
+      motorLinearity: motorLinearity,
+      dTermNoise: dTermNoise,
+      frameCount: collected.frameCount,
+      isReal: true
+    }, false);
+
+    statusEl.textContent = 'Реальний аналіз завершено: ' + collected.frameCount + ' фреймів';
+    statusEl.style.color = 'var(--green)';
+    document.getElementById('upload-zone').style.borderColor = 'var(--green)';
+
+  } catch (err) {
+    console.error('Blackbox parse error:', err);
+    statusEl.textContent = 'Помилка: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+    document.getElementById('upload-zone').style.borderColor = 'var(--red)';
+    // Показуємо кнопку симуляції
+    var simBtn = document.getElementById('analyze-btn');
+    if (simBtn) { simBtn.style.display = 'inline-block'; simBtn.textContent = 'ЗАПУСТИТИ СИМУЛЯЦІЮ'; }
+  }
+}
+
+// ── CSV парсер (Betaflight Blackbox Explorer export) ─────────
+// Формат: перший рядок — заголовки, далі — дані через кому
+function _parseBBLcsv(arrayBuffer) {
+  var text = new TextDecoder('utf-8').decode(new Uint8Array(arrayBuffer));
+  var lines = text.split('\n');
+  if (lines.length < 2) return null;
+
+  // Знаходимо рядок заголовків (містить "gyroADC" або "time")
+  var headerIdx = 0;
+  for (var i = 0; i < Math.min(lines.length, 20); i++) {
+    if (lines[i].indexOf('gyroADC') !== -1 || lines[i].indexOf('time (us)') !== -1 || lines[i].indexOf('loopIteration') !== -1) {
+      headerIdx = i; break;
+    }
+  }
+
+  var headers = lines[headerIdx].split(',').map(function(h) { return h.trim().replace(/"/g, ''); });
+
+  // Індекси потрібних колонок
+  var idx = {
+    gyro0: _findCol(headers, ['gyroADC[0]', 'gyroADC_0', 'gyroRoll']),
+    gyro1: _findCol(headers, ['gyroADC[1]', 'gyroADC_1', 'gyroPitch']),
+    gyro2: _findCol(headers, ['gyroADC[2]', 'gyroADC_2', 'gyroYaw']),
+    motor0: _findCol(headers, ['motor[0]', 'motor_0', 'motor0']),
+    motor1: _findCol(headers, ['motor[1]', 'motor_1', 'motor1']),
+    motor2: _findCol(headers, ['motor[2]', 'motor_2', 'motor2']),
+    motor3: _findCol(headers, ['motor[3]', 'motor_3', 'motor3']),
+    throttle: _findCol(headers, ['rcCommand[3]', 'rcCommand_3', 'throttle', 'rcThrottle']),
+    vbat: _findCol(headers, ['vbatLatest', 'vbat', 'voltage']),
+    current: _findCol(headers, ['amperageLatest', 'amperage', 'current (A)', 'currentSensor']),
+    looptime: _findCol(headers, ['looptime', 'loopIteration'])
+  };
+
+  var gyroRoll = [], gyroPitch = [], gyroYaw = [];
+  var motorVals = [[], [], [], []];
+  var throttleVals = [], vbatVals = [], currentVals = [];
+  var frameCount = 0;
+  var looptimeUs = 125; // default 8kHz
+
+  // Читаємо рядки даних (пропускаємо до headerIdx+1)
+  // Для великих файлів беремо кожен 4-й рядок (достатньо для аналізу)
+  var step = lines.length > 50000 ? 4 : (lines.length > 20000 ? 2 : 1);
+
+  for (var r = headerIdx + 1; r < lines.length; r += step) {
+    var row = lines[r];
+    if (!row || row.trim() === '') continue;
+    var cols = row.split(',');
+    if (cols.length < 3) continue;
+
+    frameCount++;
+    if (idx.gyro0 >= 0) gyroRoll.push(parseFloat(cols[idx.gyro0]) || 0);
+    if (idx.gyro1 >= 0) gyroPitch.push(parseFloat(cols[idx.gyro1]) || 0);
+    if (idx.gyro2 >= 0) gyroYaw.push(parseFloat(cols[idx.gyro2]) || 0);
+    if (idx.motor0 >= 0) motorVals[0].push(parseFloat(cols[idx.motor0]) || 0);
+    if (idx.motor1 >= 0) motorVals[1].push(parseFloat(cols[idx.motor1]) || 0);
+    if (idx.motor2 >= 0) motorVals[2].push(parseFloat(cols[idx.motor2]) || 0);
+    if (idx.motor3 >= 0) motorVals[3].push(parseFloat(cols[idx.motor3]) || 0);
+    if (idx.throttle >= 0) throttleVals.push(parseFloat(cols[idx.throttle]) || 0);
+    if (idx.vbat >= 0) vbatVals.push(parseFloat(cols[idx.vbat]) || 0);
+    if (idx.current >= 0) currentVals.push(parseFloat(cols[idx.current]) || 0);
+  }
+
+  return { gyroRoll: gyroRoll, gyroPitch: gyroPitch, gyroYaw: gyroYaw,
+           motorVals: motorVals, throttleVals: throttleVals,
+           vbatVals: vbatVals, currentVals: currentVals,
+           frameCount: frameCount, looptimeUs: looptimeUs };
+}
+
+// ── BBL бінарний парсер ──────────────────────────────────────
+// Betaflight .bbl: текстові заголовки + бінарні I/P-frames
+// Формат заголовків: "H fieldName:value\n"
+// I-frame (0x49): повні значення всіх полів
+// P-frame (0x50): дельта від попереднього I-frame
+function _parseBBLbinary(arrayBuffer) {
+  var bytes = new Uint8Array(arrayBuffer);
+  var len = bytes.length;
+
+  // ── 1. Читаємо текстові заголовки (до першого 0x00 або 'H ' блоку) ──
+  var headerEnd = 0;
+  var fieldNames = [];
+  var looptimeUs = 125;
+  var headerText = '';
+
+  // BBL заголовки — рядки що починаються з 'H '
+  for (var i = 0; i < Math.min(len, 8192); i++) {
+    if (bytes[i] === 0x0A) { // newline
+      if (headerText.indexOf('H Field I name:') === 0) {
+        fieldNames = headerText.slice(15).split(',');
+      } else if (headerText.indexOf('H looptime:') === 0) {
+        looptimeUs = parseInt(headerText.slice(11)) || 125;
+      }
+      headerText = '';
+      // Кінець заголовків — якщо наступний байт не 'H'
+      if (i + 1 < len && bytes[i+1] !== 72) { // 72 = 'H'
+        headerEnd = i + 1; break;
+      }
+    } else {
+      headerText += String.fromCharCode(bytes[i]);
+    }
+  }
+
+  if (fieldNames.length === 0) {
+    // Спробуємо знайти поля за стандартними індексами BF
+    fieldNames = ['loopIteration','time','axisP[0]','axisP[1]','axisP[2]',
+                  'axisI[0]','axisI[1]','axisI[2]','axisD[0]','axisD[1]',
+                  'rcCommand[0]','rcCommand[1]','rcCommand[2]','rcCommand[3]',
+                  'setpoint[0]','setpoint[1]','setpoint[2]','setpoint[3]',
+                  'vbatLatest','amperageLatest',
+                  'gyroADC[0]','gyroADC[1]','gyroADC[2]',
+                  'motor[0]','motor[1]','motor[2]','motor[3]'];
+  }
+
+  var fIdx = {
+    gyro0:    fieldNames.indexOf('gyroADC[0]'),
+    gyro1:    fieldNames.indexOf('gyroADC[1]'),
+    gyro2:    fieldNames.indexOf('gyroADC[2]'),
+    motor0:   fieldNames.indexOf('motor[0]'),
+    motor1:   fieldNames.indexOf('motor[1]'),
+    motor2:   fieldNames.indexOf('motor[2]'),
+    motor3:   fieldNames.indexOf('motor[3]'),
+    throttle: fieldNames.indexOf('rcCommand[3]'),
+    vbat:     fieldNames.indexOf('vbatLatest'),
+    current:  fieldNames.indexOf('amperageLatest')
+  };
+
+  var gyroRoll = [], gyroPitch = [], gyroYaw = [];
+  var motorVals = [[], [], [], []];
+  var throttleVals = [], vbatVals = [], currentVals = [];
+  var frameCount = 0;
+  var prev = new Array(fieldNames.length).fill(0);
+
+  // ── 2. Читаємо фрейми ────────────────────────────────────────
+  var pos = headerEnd;
+  var maxFrames = 20000; // обмеження для продуктивності
+
+  while (pos < len - 2 && frameCount < maxFrames) {
+    var frameType = bytes[pos];
+    pos++;
+
+    if (frameType === 0x49) { // 'I' — intra frame (абсолютні значення)
+      var fields = _readBBLframe(bytes, pos, fieldNames.length, false);
+      if (!fields) break;
+      pos = fields.nextPos;
+      prev = fields.values;
+      frameCount++;
+
+      // Беремо кожен 4-й I-frame для продуктивності
+      if (frameCount % 4 === 0) {
+        _collectFrame(fields.values, fIdx, gyroRoll, gyroPitch, gyroYaw, motorVals, throttleVals, vbatVals, currentVals);
+      }
+
+    } else if (frameType === 0x50) { // 'P' — predicted (дельта)
+      // P-frames пропускаємо для простоти (I-frames достатньо для аналізу)
+      var pFields = _readBBLframe(bytes, pos, fieldNames.length, true);
+      if (!pFields) break;
+      pos = pFields.nextPos;
+
+    } else {
+      // Невідомий байт — шукаємо наступний маркер фрейму
+      pos++;
+    }
+  }
+
+  return { gyroRoll: gyroRoll, gyroPitch: gyroPitch, gyroYaw: gyroYaw,
+           motorVals: motorVals, throttleVals: throttleVals,
+           vbatVals: vbatVals, currentVals: currentVals,
+           frameCount: frameCount, looptimeUs: looptimeUs };
+}
+
+// Зчитуємо один BBL фрейм (спрощена версія — signed varint encoding)
+function _readBBLframe(bytes, pos, fieldCount, isDelta) {
+  var values = [];
+  var startPos = pos;
+  try {
+    for (var f = 0; f < fieldCount; f++) {
+      if (pos >= bytes.length) return null;
+      // Betaflight використовує variable-length signed integers
+      var val = 0, shift = 0, b;
+      do {
+        if (pos >= bytes.length) return null;
+        b = bytes[pos++];
+        val |= (b & 0x7F) << shift;
+        shift += 7;
+      } while (b & 0x80);
+      // Sign extension
+      if (val & (1 << (shift - 1))) val -= (1 << shift);
+      values.push(val);
+    }
+    return { values: values, nextPos: pos };
+  } catch(e) {
+    return null;
+  }
+}
+
+// Додаємо значення фрейму до масивів
+function _collectFrame(vals, idx, gyroRoll, gyroPitch, gyroYaw, motorVals, throttleVals, vbatVals, currentVals) {
+  if (idx.gyro0 >= 0 && idx.gyro0 < vals.length) gyroRoll.push(vals[idx.gyro0]);
+  if (idx.gyro1 >= 0 && idx.gyro1 < vals.length) gyroPitch.push(vals[idx.gyro1]);
+  if (idx.gyro2 >= 0 && idx.gyro2 < vals.length) gyroYaw.push(vals[idx.gyro2]);
+  if (idx.motor0 >= 0) motorVals[0].push(vals[idx.motor0] || 0);
+  if (idx.motor1 >= 0) motorVals[1].push(vals[idx.motor1] || 0);
+  if (idx.motor2 >= 0) motorVals[2].push(vals[idx.motor2] || 0);
+  if (idx.motor3 >= 0) motorVals[3].push(vals[idx.motor3] || 0);
+  if (idx.throttle >= 0) throttleVals.push(vals[idx.throttle] || 0);
+  if (idx.vbat >= 0) vbatVals.push(vals[idx.vbat] || 0);
+  if (idx.current >= 0) currentVals.push(vals[idx.current] || 0);
+}
+
+// Допоміжна: знайти індекс колонки за кількома можливими назвами
+function _findCol(headers, names) {
+  for (var n = 0; n < names.length; n++) {
+    var idx = headers.indexOf(names[n]);
+    if (idx >= 0) return idx;
+  }
+  return -1;
+}
+
+// ── Кнопка "Запустити аналіз логу" — симуляція без файлу ─────
+function runAnalysis() {
+  document.getElementById('analyze-btn').style.display = 'none';
+  document.getElementById('analyze-progress').classList.add('active');
+  _runSimulatedAnalysis();
+}
+
+// ── Симульований аналіз (fallback або без файлу) ─────────────
+function _runSimulatedAnalysis() {
+  [1,2,3,4,5].forEach((n,i) => {
+    setTimeout(() => _setAnalysisStep(n, 5), i * 700);
+  });
+  setTimeout(() => {
+    const propSize = +document.getElementById('prop_size').value;
+    const propMat  = document.getElementById('prop_material').value;
+    const freqVal  = 160 + Math.round(Math.random() * 80);
+    const irVal    = 20  + Math.round(Math.random() * 30);
+    const currVal  = parseFloat((12 + Math.random() * 6).toFixed(1));
+
+    const poorLinearityP = propSize >= 10 ? 0.55 : propSize >= 7 ? 0.30 : 0.15;
+    const highNoiseP     = propMat === 'plastic' ? 0.55 : propMat === 'glass' ? 0.40 : 0.25;
+    const irFactor       = irVal > 35 ? 0.15 : 0;
+
+    _applyAnalysisResults({
+      resonanceFreq: freqVal,
+      ir: Math.min(irVal, 15),
+      cruiseCurrent: currVal,
+      motorLinearity: Math.random() > poorLinearityP ? 'good' : 'poor',
+      dTermNoise:     Math.random() > (1 - highNoiseP - irFactor) ? 'high' : 'low',
+      isReal: false,
+    }, true);
+  }, 5 * 700);
+}
+
+// ── Оновлення UI після аналізу ────────────────────────────────
+function _applyAnalysisResults(res, isSimulated) {
+  const motorOk  = res.motorLinearity === 'good';
+  const noiseHigh = res.dTermNoise === 'high';
+
+  // Записуємо в AppState
+  AppState.set('analysisData', {
+    resonanceFreq:  res.resonanceFreq,
+    ir:             res.ir,
+    cruiseCurrent:  res.cruiseCurrent,
+    motorLinearity: res.motorLinearity,
+    dTermNoise:     res.dTermNoise,
+  });
+
+  document.getElementById('ar-freq').textContent    = res.resonanceFreq + ' Гц';
+  document.getElementById('ar-ir').textContent      = res.ir + ' мОм';
+  document.getElementById('ar-current').textContent = res.cruiseCurrent + ' A';
+  document.getElementById('ar-motor').textContent   = motorOk ? 'Добра (+0%)' : 'Погана (P −12%)';
+  document.getElementById('ar-motor-bar').style.width = motorOk ? '88%' : '30%';
+  document.getElementById('ar-noise').textContent   = noiseHigh ? 'Високий (−20% LPF)' : 'Низький (норм)';
+  document.getElementById('ar-noise-bar').style.width = noiseHigh ? '75%' : '25%';
+
+  // Показуємо результати
+  document.getElementById('analyze-progress').classList.remove('active');
+  document.getElementById('analysis-results').style.display = 'block';
+  const badge = document.getElementById('analysis-sim-badge');
+  if (badge) {
+    badge.style.display = isSimulated ? 'flex' : 'none';
+    // Якщо реальні дані — показуємо позитивний бейдж
+    if (!isSimulated) {
+      badge.className = 'warning info';
+      badge.innerHTML = '<span class="warning-icon">✅</span><span class="warning-text"><strong>Реальні дані з Blackbox-логу.</strong> ' +
+        'Проаналізовано ' + (res.frameCount || '?') + ' фреймів польоту.</span>';
+      badge.style.display = 'flex';
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// АЛГОРИТМИ АНАЛІЗУ РЕАЛЬНИХ ДАНИХ
+// ═══════════════════════════════════════════════════════════════
+
+// ── FFT: знаходимо домінантну резонансну частоту ─────────────
+// Алгоритм: DFT (вбудований, без зовнішніх бібліотек)
+function _calculateFFTPeak(signal, looptimeUs) {
+  if (!signal || signal.length < 64) return 180; // fallback
+
+  // Беремо 2^N семплів для FFT
+  const N = 512;
+  const samples = signal.slice(-N).map(Number);
+
+  // Використовуємо вбудований DFT (офлайн, без CDN)
+  // Вбудований DFT — повністю офлайн, без зовнішніх бібліотек
+  var magnitudes = _simpleDFT(samples, looptimeUs || 125);
+
+  // Шукаємо пік у діапазоні 80–400 Гц (де зазвичай резонанс FPV)
+  const sampleRateHz = 1e6 / (looptimeUs || 125);
+  const freqResolution = sampleRateHz / magnitudes.length;
+  const minBin = Math.floor(80  / freqResolution);
+  const maxBin = Math.floor(400 / freqResolution);
+
+  let peakBin = minBin, peakMag = 0;
+  for (let i = minBin; i <= Math.min(maxBin, magnitudes.length - 1); i++) {
+    if (magnitudes[i] > peakMag) { peakMag = magnitudes[i]; peakBin = i; }
+  }
+
+  return Math.round(peakBin * freqResolution);
+}
+
+// Простий DFT для fallback (без бібліотеки)
+function _simpleDFT(signal, looptimeUs) {
+  const N = signal.length;
+  const sampleRate = 1e6 / looptimeUs;
+  const maxFreq = 500; // Гц
+  const freqStep = 5;  // крок 5 Гц
+  const result = [];
+  for (let f = 0; f <= maxFreq; f += freqStep) {
+    let re = 0, im = 0;
+    for (let n = 0; n < N; n++) {
+      const angle = 2 * Math.PI * f * n / sampleRate;
+      re += signal[n] * Math.cos(angle);
+      im -= signal[n] * Math.sin(angle);
+    }
+    result.push(Math.sqrt(re*re + im*im) / N);
+  }
+  return result;
+}
+
+// ── IR батареї: R = ΔV / ΔI при стрибках газу ───────────────
+// Метод: знаходимо кадри де струм змінюється > 5А, беремо dV/dI
+function _calculateBatteryIR(vbatVals, currentVals) {
+  if (!vbatVals.length || !currentVals.length) return 25; // fallback
+
+  // vbat зазвичай в одиницях 0.01 В, current — 0.01 А (залежно від налаштувань BF)
+  const vScale = 0.01, iScale = 0.01;
+  const diffs = [];
+
+  for (let i = 1; i < Math.min(vbatVals.length, currentVals.length); i++) {
+    const dI = (currentVals[i] - currentVals[i-1]) * iScale;
+    const dV = (vbatVals[i]   - vbatVals[i-1])   * vScale;
+    if (Math.abs(dI) > 2.0) { // тільки значущі зміни струму
+      diffs.push(Math.abs(dV / dI) * 1000); // мОм
+    }
+  }
+
+  if (!diffs.length) return 25;
+  diffs.sort((a,b) => a - b);
+  // Медіана (стійка до викидів)
+  const median = diffs[Math.floor(diffs.length / 2)];
+  return Math.round(Math.min(Math.max(median, 5), 80)); // обмеження 5–80 мОм
+}
+
+// ── Крейсерський струм: середній струм при газі 30–70% ──────
+function _calculateCruiseCurrent(currentVals, throttleVals) {
+  if (!currentVals.length) return 14.5; // fallback
+
+  // Throttle в BF зазвичай 1000–2000 (PWM) або 0–100
+  const throttleScale = throttleVals.length && throttleVals[0] > 200 ? 0.1 : 1;
+  let sum = 0, count = 0;
+
+  for (let i = 0; i < currentVals.length; i++) {
+    const throttle = (throttleVals[i] || 0) * throttleScale;
+    if (throttle >= 30 && throttle <= 70) {
+      sum += currentVals[i] * 0.01; // масштаб BF
+      count++;
+    }
+  }
+  if (!count) {
+    // Якщо throttle недоступний — беремо середнє
+    const avg = currentVals.reduce((a,b) => a+b, 0) / currentVals.length * 0.01;
+    return parseFloat(avg.toFixed(1));
+  }
+  return parseFloat((sum / count).toFixed(1));
+}
+
+// ── Лінійність моторів: кореляція throttle vs motor output ──
+function _assessMotorLinearity(motorVals, throttleVals) {
+  if (!motorVals[0].length || !throttleVals.length) return 'good';
+
+  // Беремо середнє по всіх моторах
+  const avgMotor = motorVals[0].map(function(_, i) {
+    return motorVals.reduce(function(s, m) { return s + (m[i] || 0); }, 0) / motorVals.length;
+  });
+  const n = Math.min(avgMotor.length, throttleVals.length);
+  if (n < 50) return 'good';
+
+  // Коефіцієнт кореляції Пірсона
+  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+  for (let i = 0; i < n; i++) {
+    const x = throttleVals[i], y = avgMotor[i];
+    sumX += x; sumY += y; sumXY += x*y; sumX2 += x*x; sumY2 += y*y;
+  }
+  const num = n*sumXY - sumX*sumY;
+  const den = Math.sqrt((n*sumX2 - sumX*sumX) * (n*sumY2 - sumY*sumY));
+  const r   = den > 0 ? num / den : 1;
+
+  return r > 0.85 ? 'good' : 'poor'; // r < 0.85 → нелінійність / десинхрон
+}
+
+// ── D-term шум: стандартне відхилення гіросигналу ────────────
+function _assessDtermNoise(gyroSignal) {
+  if (!gyroSignal.length) return 'low';
+  const n   = gyroSignal.length;
+  const avg = gyroSignal.reduce((s,v) => s+v, 0) / n;
+  const std = Math.sqrt(gyroSignal.reduce((s,v) => s + (v-avg)**2, 0) / n);
+  // Поріг: std > 30 одиниць АЦП → high noise (емпірично з Betaflight Blackbox Explorer)
+  return std > 30 ? 'high' : 'low';
+}
+
+// ═══════════════════════════════════════════
+// CALCULATIONS ENGINE
+// ═══════════════════════════════════════════
+function getInputs() {
+  const windDir = document.getElementById('wind_dir').value;
+  const windAngle = windDir === 'angle' ? +document.getElementById('wind_angle').value : 
+    (windDir === 'headwind' ? 0 : windDir === 'crosswind' ? 90 : 180);
+  return {
+    w_drone:          +document.getElementById('w_drone').value,
+    w_battery:        +document.getElementById('w_battery').value,
+    w_payload:        +document.getElementById('w_payload').value,
+    max_thrust:       +document.getElementById('max_thrust').value,
+    prop_size:        +document.getElementById('prop_size').value,
+    prop_pitch:       +document.getElementById('prop_pitch').value,
+    prop_blades:      +document.getElementById('prop_blades').value,
+    prop_material:     document.getElementById('prop_material').value,
+    batt_s:           +document.getElementById('batt_s').value,
+    batt_mah:         +document.getElementById('batt_mah').value,
+    batt_cycles:      +document.getElementById('batt_cycles').value || 0,
+    batt_c_rate:      +document.getElementById('batt_c_rate').value || 25,
+    esc_max_a:        +document.getElementById('esc_max_a').value || 45,
+    mission_dist:     +document.getElementById('mission_dist').value,
+    mission_alt:      +document.getElementById('mission_alt').value,
+    climb_alt:        +document.getElementById('climb_alt').value,
+    wind_speed:       +document.getElementById('wind_speed').value,
+    wind_dir:          windDir,
+    wind_angle:        windAngle,
+    temperature:      +document.getElementById('temperature').value,
+    humidity:         +document.getElementById('humidity').value || 60,
+    motor_arm:        +document.getElementById('motor_arm').value || 150,
+    frame_type:        document.getElementById('frame_type').value,
+    motor_kv:         +document.getElementById('motor_kv').value || 1700,
+    motor_resistance: +document.getElementById('motor_resistance').value || 80,
+    wind_shear_model:  (document.getElementById('wind_shear_model')?.value) || 'log',
+  };
+}
+
+function calcPIDSet(inp, rhoNorm, base, mtype, wearMult, motorMult, noiseMult, withPayload, twr_override) {
+  const totalW = inp.w_drone + inp.w_battery + (withPayload ? inp.w_payload : 0);
+  // Use iterative thrust TWR if provided, otherwise fall back to simplified estimate
+  const twr = (twr_override != null)
+    ? twr_override
+    : Math.round(inp.max_thrust * rhoNorm) / totalW;
+
+  // Large prop inertia correction
+  const propSizeCorr = inp.prop_size >= 12 ? 0.60 : inp.prop_size >= 10 ? 0.72 : 1.0;
+  const propI_boost  = inp.prop_size >= 10 ? 1.20 : 1.0;
+
+  // ── МОМЕНТ ІНЕРЦІЇ (v4.0) ──────────────────────────────────────────────
+  // I_roll ≈ 2 * m_motor * R² (де R = motor_arm у метрах)
+  // Нормалізуємо відносно еталонного плеча 150 мм
+  // Більше плече → більша інерція → P знижується
+  const armM = (inp.motor_arm || 150) / 1000.0; // mm → м
+  const armRef = 0.150; // 150 мм — еталон
+  // Маса кожного мотора ≈ 5% ваги дрона (спрощення)
+  const m_motor_est = (inp.w_drone * 0.05) / 1000; // кг
+  const I_roll_est = 2 * m_motor_est * armM * armM;
+  const I_roll_ref = 2 * m_motor_est * armRef * armRef;
+  const inertiaPcorr = Math.min(1.2, Math.max(0.6, I_roll_ref / I_roll_est));
+
+  // TWR correction for P (обмежуємо при дуже високому TWR)
+  const twrIdeal = 2.5;
+  const twrCorrP = twr > 3.5 ? (twrIdeal / 3.5) * 0.90 : twr / twrIdeal; // cap at TWR≈3.5 to avoid over-sensitivity
+  let P = Math.round(base.P * twrCorrP * propSizeCorr * motorMult * wearMult.p * inertiaPcorr);
+
+  // ── D: виправлена формула (v4.0) ─────────────────────────────────────
+  // Видалено D_alt з висотою (фізично некоректно — на висоті D МАЄ знижуватись)
+  // Тепер D пропорційний лише густині повітря
+  let D = Math.round(base.D * (0.6 + 0.4 * rhoNorm));
+
+  // D: prop material (3.2)
+  if(inp.prop_material === 'carbon') D = Math.round(D * 1.08);
+  else if(inp.prop_material === 'plastic') D = Math.round(D * 0.93);
+  D = Math.round(D * wearMult.d * noiseMult.d);
+
+  // ── I: векторна корекція вітру (v4.0) ────────────────────────────────
+  // w_x = проекція вітру на вісь pitch (зустрічний/попутній)
+  // w_y = проекція вітру на вісь roll (боковий)
+  const windAngleRad = (inp.wind_angle || 0) * Math.PI / 180;
+  const w_x = Math.abs(inp.wind_speed * Math.cos(windAngleRad)); // pitch axis
+  const w_y = Math.abs(inp.wind_speed * Math.sin(windAngleRad)); // roll axis
+  const V_char = 15.0; // характеристична швидкість м/с
+  let I_roll  = Math.round(base.I * (1 + w_y / V_char));
+  let I_pitch = Math.round(base.I * (1 + w_x / V_char));
+
+  // Large prop: more I
+  I_roll  = Math.round(I_roll  * propI_boost);
+  I_pitch = Math.round(I_pitch * propI_boost);
+
+  // Mission type overrides
+  let ff_mult = 1.0;
+  let ag_mult = 1.0;
+  if(mtype === 'kamikaze') {
+    P = Math.round(P * 1.30);
+    I_roll = Math.round(I_roll * 0.80);
+    I_pitch = Math.round(I_pitch * 0.80);
+    D = Math.round(D * 0.90);
+    ff_mult = 1.4;
+    ag_mult = 0.7;
+  } else if(mtype === 'bomber') {
+    P = Math.round(P * 0.85);
+    I_roll  = Math.round(I_roll  * 1.30);
+    I_pitch = Math.round(I_pitch * 1.30);
+    ff_mult = 0.75;
+    ag_mult = 1.5;
+    if(!withPayload) {
+      // After drop: re-tune for lighter weight
+      P = Math.round(P * 1.15);
+      I_roll  = Math.round(I_roll  * 0.85);
+      I_pitch = Math.round(I_pitch * 0.85);
+    }
+  }
+
+  // Yaw
+  const yaw_P = Math.round(P * 1.5);
+  const yaw_I = Math.round(base.I * 1.3);
+
+  return { P, I_roll, I_pitch, D, yaw_P, yaw_I, twr, totalW, ff_mult, ag_mult, inertiaPcorr, w_x: w_x.toFixed(1), w_y: w_y.toFixed(1) };
+}
+
+// ═══════════════════════════════════════════
+// HELPER: THERMAL CHART RENDERER (extracted for reuse)
+// ═══════════════════════════════════════════
+function renderThermalChart(thermalPhases) {
+  const valid = thermalPhases.filter(function(p){ return isFinite(p.t); });
+  const maxT = Math.max.apply(null, valid.map(function(p){ return p.T; }).concat([1]));
+  const barsHtml = valid.map(function(p) {
+    const pct = Math.round((p.T / maxT) * 100);
+    const col = p.T > 90 ? 'var(--red)' : p.T > 70 ? 'var(--amber)' : 'var(--green)';
+    return '<div class="thermal-bar-item" style="height:' + pct + '%;background:' + col + ';flex:1" title="' + p.label + ': ' + p.T + '°C">'
+      + '<div style="font-family:\'Share Tech Mono\',monospace;font-size:9px;color:rgba(0,0,0,.7);text-align:center;padding-top:2px;overflow:hidden">' + p.T + '°</div></div>';
+  }).join('');
+  const labelsHtml = valid.map(function(p) {
+    return '<div style="flex:1;font-size:9px;color:var(--text3);text-align:center;overflow:hidden;white-space:nowrap;font-family:\'Share Tech Mono\',monospace">' + p.label + '</div>';
+  }).join('');
+  return { barsHtml: barsHtml, labelsHtml: labelsHtml };
+}
+
+// ═══════════════════════════════════════════
+// ПРОФІЛІ: ЗБЕРЕЖЕННЯ ТА ПОРІВНЯННЯ (v8.0)
+// ═══════════════════════════════════════════
+function saveProfile() {
+  if (!calcResults) return;
+  const r = calcResults;
+  const label = 'Профіль ' + (savedProfiles.length + 1);
+  const snap = {
+    label: label,
+    time: new Date().toLocaleTimeString('uk-UA', {hour:'2-digit', minute:'2-digit'}),
+    flightMin:   r.flightTimeMin,
+    rangeKm:     r.maxRangeKm,
+    twr:         r.twr,
+    P:           r.p1.P,
+    D:           r.p1.D,
+    I_roll:      r.p1.I_roll,
+    bat:         r.inp.batt_s + 'S/' + r.inp.batt_mah + 'мАг',
+    throttle:    r.throttle_cruise + '%',
+    tempMin:     r.T_motor_cruise + '°C',
+    tempPeak:    r.T_motor_est + '°C',
+    twrNum:      r.twrNum,
+  };
+  if (savedProfiles.length >= 5) savedProfiles.shift(); // max 5
+  savedProfiles.push(snap);
+  renderProfileComparison();
+  // Flash
+  const btn = document.getElementById('save-profile-btn');
+  if (btn) {
+    btn.textContent = '✅ ЗБЕРЕЖЕНО';
+    setTimeout(function(){ btn.textContent = '💾 ЗБЕРЕГТИ ПРОФІЛЬ'; }, 1800);
+  }
+}
+
+function renderProfileComparison() {
+  const el = document.getElementById('profile-comparison');
+  if (!el) return;
+  if (!savedProfiles.length) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+
+  const fields = [
+    { key: 'bat',       label: 'Батарея' },
+    { key: 'flightMin', label: 'Час польоту, хв' },
+    { key: 'rangeKm',   label: 'Дальність, км' },
+    { key: 'twr',       label: 'TWR' },
+    { key: 'throttle',  label: 'Газ крейс.' },
+    { key: 'P',         label: 'PID P' },
+    { key: 'D',         label: 'PID D' },
+    { key: 'tempPeak',  label: 'T мотора пік' },
+    { key: 'tempMin',   label: 'T мотора крейс.' },
+  ];
+
+  // Best values for highlighting
+  const best = {};
+  ['flightMin','rangeKm','twr'].forEach(function(k) {
+    best[k] = Math.max.apply(null, savedProfiles.map(function(p){ return parseFloat(p[k])||0; }));
+  });
+
+  let html = '<div style="overflow-x:auto">'
+    + '<table style="width:100%;border-collapse:collapse;font-family:\'Share Tech Mono\',monospace;font-size:12px">'
+    + '<thead><tr><th style="text-align:left;padding:6px 8px;color:var(--text3);border-bottom:1px solid var(--border)">Параметр</th>'
+    + savedProfiles.map(function(p) {
+        return '<th style="padding:6px 8px;color:var(--green);border-bottom:1px solid var(--border);white-space:nowrap">'
+          + p.label + '<br><span style="color:var(--text3);font-size:10px">' + p.time + '</span></th>';
+      }).join('')
+    + '</tr></thead><tbody>';
+
+  fields.forEach(function(f, fi) {
+    const bg = fi % 2 === 0 ? 'background:var(--bg2)' : '';
+    html += '<tr style="' + bg + '">'
+      + '<td style="padding:5px 8px;color:var(--text3)">' + f.label + '</td>'
+      + savedProfiles.map(function(p) {
+          const val = p[f.key];
+          const isBest = best[f.key] && (parseFloat(val)||0) >= best[f.key];
+          const color = isBest ? 'color:var(--green);font-weight:bold' : 'color:var(--text1)';
+          return '<td style="padding:5px 8px;text-align:center;' + color + '">' + val + '</td>';
+        }).join('')
+      + '</tr>';
+  });
+
+  html += '</tbody></table>'
+    + '<button onclick="savedProfiles=[];renderProfileComparison()" style="margin-top:8px;font-family:\'Share Tech Mono\',monospace;font-size:11px;background:none;border:1px solid var(--border);color:var(--text3);padding:4px 12px;cursor:pointer;border-radius:3px">🗑 ОЧИСТИТИ ПОРІВНЯННЯ</button>'
+    + '</div>';
+
+  el.innerHTML = html;
+}
+
+function runCalculations() {
+  var body = document.getElementById('calc-steps-body');
+  try {
+  _runCalculationsCore(body);
+  } catch(e) {
+    body.innerHTML = '<div style="background:#1a0000;border:1px solid var(--red);border-radius:6px;padding:20px;font-family:\'Share Tech Mono\',monospace;font-size:12px;color:var(--red)">'
+      + '<div style="font-size:14px;margin-bottom:10px">⛔ ПОМИЛКА РОЗРАХУНКУ</div>'
+      + '<div style="color:#ff9999;word-break:break-all">' + e.message + '</div>'
+      + '<div style="margin-top:10px;color:var(--text3)">Рядок: ' + (e.stack ? e.stack.split('\\n')[1] : '?') + '</div>'
+      + '<div style="margin-top:16px"><button class="btn btn-primary" onclick="runCalculations()">🔄 ПОВТОРИТИ</button></div>'
+      + '</div>';
+    console.error('runCalculations error:', e);
+  }
+}
+
+function _runCalculationsCore(body) {
+  const inp = getInputs();
+
+  // ═══════════════════════════════════════════════════════════════
+  // 1. АТМОСФЕРНА МОДЕЛЬ ISA з вологістю (v5.0)
+  // ═══════════════════════════════════════════════════════════════
+  const P0 = 101325;      // Па
+  const L  = 0.0065;      // К/м градієнт температури
+  const T0 = 288.15;      // К
+  const Rair = 287.058;   // Дж/(кг·К)
+  const g  = 9.81;
+
+  const h = inp.mission_alt;
+  const T_K = T0 - L * h + (inp.temperature - 15); // фактична температура в К
+  const P_h = P0 * Math.pow(1 - (L * h / T0), (g / (Rair * L))); // тиск на висоті
+
+  // Парціальний тиск водяної пари
+  // При T < 0°C — формула Магнуса для льоду (тиск над льодом нижчий, ніж над водою)
+  const T_C = inp.temperature;
+  let e_sat;
+  if (T_C >= 0) {
+    e_sat = 610.78 * Math.exp(17.27 * T_C / (T_C + 237.3)); // Па (вода)
+  } else {
+    e_sat = 610.78 * Math.exp(21.87 * T_C / (T_C + 265.5)); // Па (лід — формула для від'ємних T)
+  }
+  const e = (inp.humidity / 100) * e_sat;
+  // Газова стала вологого повітря: R_moist = Rair / (1 - 0.378 * e / P_h)
+  const R_moist = Rair / (1 - 0.378 * e / P_h);
+
+  const rho = P_h / (R_moist * T_K);
+  const rhoNorm = rho / 1.225;
+  const rhoStd = P0 / (Rair * T0); // = 1.225 кг/м³
+
+  // ═══════════════════════════════════════════════════════════════
+  // 2. МОДЕЛЬ БАТАРЕЇ з деградацією та температурним IR
+  // ═══════════════════════════════════════════════════════════════
+  const voltNomCell = 3.7;
+  const voltNom = inp.batt_s * voltNomCell;
+
+  // Деградація ємності: β = 0.001 на цикл
+  // ── Фізичні та емпіричні константи (винесені для зручності зміни) ─────────
+  const BETA_CYCLE    = 0.001;  // деградація ємності LiPo на цикл (0.1%/цикл)
+  const ALPHA_IR      = 0.03;   // температурний коефіцієнт IR батареї (3%/°C)
+  const K_SAT         = 0.06;   // коефіцієнт насичення сталі мотора при I > I_sat
+  // ─────────────────────────────────────────────────────────────────────────────
+  const beta_cycle = BETA_CYCLE;
+  const batt_cap_actual = inp.batt_mah * (1 - beta_cycle * inp.batt_cycles);
+  const DOD = 0.80;
+  const energyWh_raw = (batt_cap_actual * DOD / 1000) * voltNom;
+
+  // IR з температурою: α = 0.03 °C⁻¹ для LiPo
+  const alpha_ir = ALPHA_IR;
+  const irActual = analysisData.ir * (1 + alpha_ir * (inp.temperature - 25));
+
+  // Втрати eff батареї при крейсерському струмі (спрощення: k_loss = IR/U_nom²)
+  const I_est = analysisData.cruiseCurrent;
+  const eta_bat = Math.max(0.85, 1 - (irActual * I_est) / (voltNom * 1000));
+  const energyWh = energyWh_raw * eta_bat;
+
+  // ═══════════════════════════════════════════════════════════════
+  // 3. ІТЕРАЦІЙНА МОДЕЛЬ ДВИГУНА + ГВИНТА (v1.0)
+  //    НОВЕ: корекція CT/CP за числом Рейнольдса (Re)
+  //          нелінійна втрата при I > 35A (насичення + вихрові втрати)
+  //          динамічна теплова модель (зліт → крейсер)
+  // ═══════════════════════════════════════════════════════════════
+  const kV = inp.motor_kv;
+  const Rm = inp.motor_resistance / 1000; // мОм → Ом
+  const I0 = 1.5; // A струм холостого ходу
+  const n_motors = 4;
+  const ke = 1.0 / (kV * 2 * Math.PI / 60); // В/(рад/с)
+
+  const propD = inp.prop_size * 0.0254; // дюйми → м
+  // CT/CP з урахуванням: розміру, кроку та кількості лопатей
+  const kT_base = {5:0.105, 6:0.100, 7:0.095, 10:0.085, 12:0.078, 15:0.070}[inp.prop_size] || 0.095;
+  const kP_base = {5:0.055, 6:0.052, 7:0.050, 10:0.044, 12:0.040, 15:0.036}[inp.prop_size] || 0.050;
+  // Корекція на кількість лопатей
+  const bladeCorr = inp.prop_blades === 2 ? 0.88 : inp.prop_blades === 4 ? 1.10 : 1.0;
+
+  // ── v1.0: Корекція CT/CP за числом Рейнольдса ──────────────────────────
+  // Re = rho * v_tip * chord / mu, де chord ≈ propD * 0.12 (типове відношення)
+  // v_tip оцінюємо попередньо: n_est = kV * voltNom * 0.9 / 60 об/с
+  const n_est = (kV * inp.batt_s * 3.7 * 0.9) / 60; // об/с, грубе наближення
+  const v_tip_est = n_est * propD * Math.PI;
+  const chord_est = propD * 0.12; // типова хорда
+  // Динамічна в'язкість повітря за формулою Сазерленда (точність ±1% у діапазоні -50…+100°C)
+  // μ(T) = μ₀ · (T/T₀)^(3/2) · (T₀+S)/(T+S), де T₀=273.15 К, S=110.4 К, μ₀=1.716e-5 Па·с
+  const T_K_visc = T_K; // та сама температура що обчислена в секції 1
+  const mu_0_suth = 1.716e-5, T0_suth = 273.15, S_suth = 110.4;
+  const mu_air = mu_0_suth * Math.pow(T_K_visc / T0_suth, 1.5) * (T0_suth + S_suth) / (T_K_visc + S_suth);
+  const Re_hover = rho * v_tip_est * chord_est / mu_air;
+  const Re_ref = 1.5e5; // референсне Re (типовий FPV)
+  // При Re < Re_ref CT дещо знижується (вище тертя, менш ефективний профіль)
+  // Корекція: delta_CT ≈ +0.03*(1 - Re/Re_ref) для Re < Re_ref
+  const Re_corr_CT = Re_hover < Re_ref ? 1.0 - 0.03 * (1 - Re_hover / Re_ref) : 1.0;
+  const Re_corr_CP = Re_hover < Re_ref ? 1.0 + 0.04 * (1 - Re_hover / Re_ref) : 1.0; // більше втрат
+  const Re_confidence = Re_hover > 0.8e5 ? 'high' : Re_hover > 0.4e5 ? 'med' : 'low';
+
+  const CT = kT_base * Math.pow(inp.prop_pitch / 4.5, 0.5) * bladeCorr * Re_corr_CT;
+  const CP = kP_base * Math.pow(inp.prop_pitch / 4.5, 1.1) * bladeCorr * Re_corr_CP; // показник 1.1 замість 1.5
+
+  // ── Ньютон-Рафсон розв'язувач (v1.0) ───────────────────────────────────
+  // НОВЕ: нелінійна корекція при I > 35А (насичення сталі + Fe-втрати)
+  // Rm_eff(I) = Rm * (1 + k_sat * max(0, I-35)/35) де k_sat ≈ 0.15 для типових FPV
+  const I_sat_threshold = 35.0; // А — поріг насичення
+  const k_sat = K_SAT; // коефіцієнт насичення — винесено в константи вище
+  function Rm_eff(I_a) {
+    return Rm * (1 + k_sat * Math.max(0, I_a - I_sat_threshold) / I_sat_threshold);
+  }
+
+  let U_iter = voltNom * 0.95;
+  let n_rps = 0, I_motor = 0, T_one = 0;
+  let converged = false;
+  let iter_count = 0;
+  const MAX_ITER = 60;
+  const CONV_TOL = 0.005;
+
+  for (let iter = 0; iter < MAX_ITER; iter++) {
+    iter_count = iter + 1;
+
+    // ── Баланс моментів двигуна і гвинта ─────────────────────────────────────
+    // Двигун: M_mot = (I - I0) / kv_rad   де kv_rad = kV * 2π / 60
+    // Гвинт:  M_prop = CP/CT * T_one / n_rps  (≈ аеродинамічне навантаження)
+    // Але простіше: ітеруємо n_rps через повний баланс напруги:
+    //
+    //   BEMF(n) = n * 60 / kV
+    //   I(n)    = (U_iter - BEMF(n)) / Rm_eff(I)   [Кіргоф]
+    //   P_mech  = (I - I0) * BEMF  [механічна потужність]
+    //   P_aero  = CP * ρ * n^3 * D^5  [аеродинаміка гвинта]
+    //   Баланс: P_mech = P_aero  → знаходимо n методом бісекції
+    //
+    // Бісекція по n між 0 і n_max = U_iter * kV / 60 (оберти без навантаження):
+    const n_max = (U_iter * kV) / 60; // оберти без навантаження (I→I0, BEMF→U)
+    let n_lo = 0, n_hi = n_max * 0.999;
+    let n_sol = n_hi * 0.7; // початкове наближення
+
+    for (let j = 0; j < 50; j++) {
+      const bemf   = n_sol * 60 / Math.max(1, kV);
+      // ── Знаходимо I_est при даному n_sol через fixed-point ітерацію ──
+      // БАГ БУВ ТУТ: Rm_eff(n_sol) передавало ОБЕРТИ замість СТРУМУ!
+      // Rm_eff(300rps) = Rm*(1+0.15*(300-35)/35) = Rm*2.1 → хибне Rm → хибний I → хибна бісекція
+      let I_est_j = I0;
+      for (let k = 0; k < 4; k++) {
+        I_est_j = Math.max(I0, (U_iter - bemf) / Math.max(1e-4, Rm_eff(I_est_j)));
+        I_est_j = Math.min(I_est_j, U_iter / Math.max(1e-4, Rm)); // cap
+      }
+      const P_mech = Math.max(0, (I_est_j - I0) * bemf);        // потужність двигуна
+      const P_aero = CP * rho * n_sol**3 * propD**5;             // потужність гвинта
+      if (P_mech > P_aero) n_lo = n_sol; else n_hi = n_sol;     // бісекція
+      n_sol = (n_lo + n_hi) / 2;
+    }
+    n_rps = Math.max(0, n_sol);
+
+    // Тяга при знайдених обертах
+    T_one = CT * rho * n_rps**2 * propD**4;
+
+    // Струм при балансових обертах
+    const bemf_sol = n_rps * 60 / Math.max(1, kV);
+    I_motor = Math.max(I0, (U_iter - bemf_sol) / Math.max(1e-4, Rm_eff(I_motor)));
+    I_motor = Math.min(I_motor, U_iter / Math.max(1e-4, Rm)); // стоп-струм cap
+    I_motor = Math.min(I_motor, inp.esc_max_a || 60);         // жорсткий ESC cap
+
+    const I_total = I_motor * n_motors;
+    const U_new = voltNom - I_total * (irActual / 1000);
+
+    const delta = U_new - U_iter;
+    if (Math.abs(delta) < CONV_TOL) { U_iter = U_new; converged = true; break; }
+    const damp = Math.abs(delta) > 1.0 ? 0.25 : 0.5;
+    U_iter = U_iter + delta * damp;
+    U_iter = Math.max(voltNom * 0.6, Math.min(voltNom, U_iter));
+  }
+  // Струм зльоту береться з ітераційного розрахунку (Ньютон-Рафсон + бісекція).
+  // Якщо ітерація не збіглась — ESC-ліміт вже застосований всередині циклу (рядок I_motor = Math.min(...esc_max_a)).
+  // v1: перевірка нелінійного режиму
+  const isNonlinearMotor = I_motor > I_sat_threshold;
+  const Rm_actual = Rm_eff(I_motor);
+
+
+  const T_total_N = T_one * n_motors;
+  const realThrustG_iter = Math.round(T_total_N / g * 1000);
+  const thrustG_density = Math.round(inp.max_thrust * rhoNorm);
+
+  // ── Валідація: довіряємо ітераційній моделі, паспорт лише для перевірки (v6.0) ──
+  const thrustDivergePct = Math.abs(realThrustG_iter - thrustG_density) / Math.max(1, thrustG_density) * 100;
+  const thrustWarning = thrustDivergePct > 25;
+
+  // Якщо розбіжність більше 20% – використовуємо паспортну тягу
+  let realThrust;
+  if (thrustDivergePct > 20) {
+    realThrust = thrustG_density;
+  } else {
+    realThrust = converged && realThrustG_iter > 0
+      ? Math.min(realThrustG_iter, Math.round(thrustG_density * 1.15))
+      : thrustG_density;
+  }
+
+  // ── Перевірки лімітів (v6.0 — п. 2.9) ──────────────────────────────────
+  const batt_max_A = inp.batt_c_rate * (inp.batt_mah / 1000);
+  const esc_current_ok = I_motor <= inp.esc_max_a;
+  const batt_current_ok = I_motor * n_motors <= batt_max_A;
+  const voltPerCell_sag = (voltNom - (irActual / 1000) * I_motor * n_motors) / inp.batt_s;
+  const brownout_risk = voltPerCell_sag < 3.3; // < 3.3В/банку — ризик brownout
+
+  const totalWeight = inp.w_drone + inp.w_battery + inp.w_payload;
+  const totalWeightKg = totalWeight / 1000;
+
+  // ═══════════════════════════════════════════════════════════════
+  // 4. PID BASE TABLE + РОЗРАХУНОК (v5.0 — через фізику)
+  // ═══════════════════════════════════════════════════════════════
+  const bases = {
+    5:  {P:48, I:45, D:30},
+    6:  {P:40, I:36, D:24},
+    7:  {P:35, I:30, D:20},
+    10: {P:28, I:26, D:16},
+    12: {P:22, I:22, D:13},
+    15: {P:16, I:18, D:10},
+  };
+  const base = bases[inp.prop_size] || bases[7];
+
+  const wearMults = {
+    new:    {p: 1.00, d: 1.00},
+    medium: {p: 0.95, d: 1.00},
+    worn:   {p: 0.88, d: 0.95},
+  };
+  const wearMult = wearMults[wearLevel];
+  const motorMult = analysisData.motorLinearity === 'poor' ? 0.88 : 1.0;
+  const noiseMult = analysisData.dTermNoise === 'high'
+    ? {d: 0.90, filterFactor: 0.80}
+    : {d: 1.00, filterFactor: 1.00};
+
+  const p1 = calcPIDSet(inp, rhoNorm, base, missionType, wearMult, motorMult, noiseMult, true,
+    realThrust / (inp.w_drone + inp.w_battery + inp.w_payload));
+  const p2 = missionType === 'bomber'
+    ? calcPIDSet(inp, rhoNorm, base, missionType, wearMult, motorMult, noiseMult, false,
+        realThrust / (inp.w_drone + inp.w_battery))
+    : null;
+
+  // ═══════════════════════════════════════════════════════════════
+  // 5. АЕРОДИНАМІКА: ОПІР ЗА ТРЬОМА ОСЯМИ (v5.0)
+  // ═══════════════════════════════════════════════════════════════
+  const CdS_map = {
+    open:   {x: 0.060, y: 0.080, z: 0.100},
+    semi:   {x: 0.040, y: 0.055, z: 0.070},
+    closed: {x: 0.025, y: 0.032, z: 0.045},
+  };
+  const CdS = CdS_map[inp.frame_type] || CdS_map.semi;
+
+  // ═══════════════════════════════════════════════════════════════
+  // 6. ДИНАМІКА ЗЛЬОТУ (v6.0): RK4 + змінна ρ(h)
+  // ═══════════════════════════════════════════════════════════════
+  const weightN = totalWeightKg * g;
+  const thrustAvailN = Math.max(0.1, (realThrust / 1000) * g);
+
+  // Рівноважна vz при базовій густині (для довідки)
+  const excessN = Math.max(0.01, thrustAvailN - weightN);
+  const vz_equil = Math.sqrt(2 * excessN / (rho * CdS.z));
+
+  // RK4 інтегрування з ρ(h) — ISA зі змінною висотою (v6.0)
+  const rho_at = (alt) => {
+    const T_alt = T_K - L * alt; // температура змінюється з висотою
+    const P_alt = P_h * Math.pow(T_alt / T_K, g / (Rair * L));
+    return Math.max(0.4, P_alt / (R_moist * T_alt));
+  };
+
+  const acc_fn = (alt, vz) => {
+    const rho_loc = rho_at(alt);
+    const F_d = 0.5 * rho_loc * CdS.z * vz * vz;
+    return (thrustAvailN - weightN - F_d) / totalWeightKg;
+  };
+
+  let vz_rk = 0, alt_rk = 0, t_rk = 0;
+  const climbAlt = inp.climb_alt || inp.mission_alt || 300;
+  const dt_rk = 0.25; // менший крок для точності
+  const MAX_RK = 3000;
+  for (let i = 0; i < MAX_RK && alt_rk < climbAlt; i++) {
+    // RK4 для vz і alt
+    const k1v = acc_fn(alt_rk, vz_rk);
+    const k1a = vz_rk;
+    const k2v = acc_fn(alt_rk + dt_rk/2 * k1a, vz_rk + dt_rk/2 * k1v);
+    const k2a = vz_rk + dt_rk/2 * k1v;
+    const k3v = acc_fn(alt_rk + dt_rk/2 * k2a, vz_rk + dt_rk/2 * k2v);
+    const k3a = vz_rk + dt_rk/2 * k2v;
+    const k4v = acc_fn(alt_rk + dt_rk * k3a, vz_rk + dt_rk * k3v);
+    const k4a = vz_rk + dt_rk * k3v;
+    vz_rk = Math.min(vz_equil * 1.05, vz_rk + (dt_rk/6) * (k1v + 2*k2v + 2*k3v + k4v));
+    alt_rk += (dt_rk/6) * (k1a + 2*k2a + 2*k3a + k4a);
+    t_rk += dt_rk;
+  }
+  const climbTimeSec = Math.round(t_rk);
+  const vz_practical = alt_rk > 0 ? (alt_rk / Math.max(1, t_rk)).toFixed(1) : '0.0';
+
+  // ═══════════════════════════════════════════════════════════════
+  // 7. ГОРИЗОНТАЛЬНИЙ ПОЛЬОТ: кут нахилу, P(v) (v5.0)
+  // ═══════════════════════════════════════════════════════════════
+  // P0 (зависання): актуаторний диск
+  const A_disk = Math.PI * (propD / 2)**2 * n_motors;
+  const P0_hover = weightN * Math.sqrt(weightN / (2 * rho * A_disk));
+
+  // Оптимальна швидкість: мінімум P(v)/v де P(v) = P0 + 0.5*rho*CdSx*v³
+  // dP/dv = 1.5*rho*CdSx*v² = 0 + розрахунок через похідну P(v)/v
+  // v_opt: P(v)/v = (P0/v + 0.5*rho*CdSx*v²) → мін при d(P/v)/dv=0
+  // → 0.5*rho*CdSx*v² = P0/v² → v_opt = (2*P0/(rho*CdSx))^(1/3)
+  const v_opt_ms = Math.pow(2 * P0_hover / (rho * CdS.x), 1/3);
+  const v_opt_kmh = v_opt_ms * 3.6;
+
+  // Табличний базовий діапазон швидкостей для обмеження
+  const baseSpeedBySize = {5:80, 6:70, 7:35, 10:45, 12:35, 15:25}; // 7": 60→40 км/г
+  const v_tab_kmh = (baseSpeedBySize[inp.prop_size] || 60) * (1 + (inp.prop_pitch - 4) * 0.1);
+  const cruiseSpeedOptAdj = Math.min(v_tab_kmh * 1.3, Math.max(v_tab_kmh * 0.6, v_opt_kmh));
+  const v_cruise_ms = cruiseSpeedOptAdj / 3.6;
+
+  // Точна потужність при крейсері з урахуванням кута нахилу
+  const F_drag_cruise = 0.5 * rho * CdS.x * v_cruise_ms**2; // Н
+  const theta_cruise = Math.atan(F_drag_cruise / weightN); // кут нахилу
+  const theta_deg = (theta_cruise * 180 / Math.PI).toFixed(1);
+  const T_cruise_N = Math.sqrt(weightN**2 + F_drag_cruise**2) / Math.cos(theta_cruise);
+  const eta_prop = 0.75; // ефективність гвинта в крейсері
+
+  // ── CG THRUST REDISTRIBUTION ─────────────────────────────────────────────
+  // Сила лобового опору прикладена до центру тиску (≈ геом. центр рами).
+  // Якщо CG зміщений відносно геом. центру — виникає момент, який
+  // компенсується різницею тяг передніх і задніх моторів.
+  //
+  // Система координат: X+ = вперед (ніс дрона), 0 = геом. центр рами.
+  // cgX_mm > 0 → CG зміщений вперед від центру рами.
+  // arm_mm = motor_arm (мм) — плече від центру рами до лінії моторів.
+  //
+  // Момент від лобового опору навколо CG:
+  //   M_drag = F_drag * h_cp  (де h_cp — висота точки прикладання опору над CG)
+  //   Спрощення: h_cp = 0 (горизонтальне переміщення, опір горизонтальний)
+  //   Тоді лобовий опір не створює пітч-моменту навколо CG при горизонтальному польоті.
+  //   АЛЕ зміщення CG від центру мас змінює рівноважний кут і розподіл тяг:
+  //     CG зміщений вперед → передні мотори навантажені більше.
+  //     CG зміщений назад  → задні мотори навантажені більше.
+  //
+  // Формула розподілу для симетричної X-рами з 4 моторами:
+  //   T_front + T_rear = T_cruise_N
+  //   T_front * arm_front = T_rear * arm_rear  (рівновага моментів)
+  //   де arm_front = arm_mm - cgX_mm, arm_rear = arm_mm + cgX_mm
+  //
+  let cgX_mm = 0; // мм, зміщення CG вперед від центру (+ = ніс)
+  let cgCruiseNote = '';
+  const cgResult = calcCG(); // функція повертає {cgX, cgY, totalMass} або null
+  if (cgResult && cgResult.totalMass > 0) {
+    cgX_mm = parseFloat(cgResult.cgX) || 0;
+    cgCruiseNote = `CG: ${cgResult.cgX} мм`;
+  }
+
+  const arm_mm   = inp.motor_arm || 150; // мм від центру рами до лінії моторів
+  const arm_front = Math.max(10, arm_mm - cgX_mm); // мм до передніх моторів
+  const arm_rear  = Math.max(10, arm_mm + cgX_mm); // мм до задніх моторів
+
+  // Розподіл тяги (рівновага моментів навколо CG):
+  // T_front / T_rear = arm_rear / arm_front  →  T_front = T_rear * arm_rear / arm_front
+  // T_front + T_rear = T_cruise_N
+  const T_rear_N  = T_cruise_N * arm_rear  / (arm_front + arm_rear); // тяга 2 задніх моторів (Н)
+  const T_front_N = T_cruise_N * arm_front / (arm_front + arm_rear); // тяга 2 передніх моторів (Н)
+
+  // Тяга найбільш навантаженої пари (визначає перегрів і термінальний струм):
+  const T_loaded_pair_N = Math.max(T_rear_N, T_front_N); // Н, 2 мотори
+  const T_motor_loaded_N = T_loaded_pair_N / 2;           // Н, 1 мотор (найгірший випадок)
+  const T_motor_avg_N    = T_cruise_N / 4;                 // Н, середній мотор
+
+  // Коефіцієнт перевантаження: sqrt(T_loaded / T_avg) — струм ≈ sqrt(T) для мотора
+  const cg_load_factor = T_motor_avg_N > 0
+    ? Math.sqrt(T_motor_loaded_N / T_motor_avg_N)
+    : 1.0;
+  // Обмежуємо розумним діапазоном (не більше 40% перевантаження)
+  const cg_load_factor_clamped = Math.min(1.40, Math.max(0.80, cg_load_factor));
+
+  // Зміщення CG в % від плеча — для відображення
+  const cg_offset_pct = Math.abs(cgX_mm) / arm_mm * 100;
+
+  // ── Газ крейсу: фізична модель ───────────────────────────────────────────
+  // В Betaflight: thrust ~ throttle_stick² (квадратична характеристика)
+  // → throttle_stick = sqrt(T / T_max)
+  //
+  // HOVER (зависання): T = W → throttle_hover = sqrt(W / T_max) = sqrt(1/TWR)
+  //   TWR=4 → hover=50%, TWR=6 → hover=41%, TWR=8 → hover=35%
+  //
+  // КРЕЙС: дрон нахилений, потрібна трохи більша тяга T_cruise > W:
+  //   T_cruise = W / cos(θ),  де θ = кут нахилу вперед
+  //   throttle_cruise = sqrt(T_cruise / T_max) ≈ throttle_hover + delta (мало)
+  //
+  // ТОМУ: крейсерський газ ≈ hover газ + 2-5%.
+  // При TWR=8: hover=35%, крейс ~37-40% ← пілот і бачить 30-40%!
+  // При TWR=4: hover=50%, крейс ~52-55%
+  // При TWR=2: hover=71%, крейс ~73-76% (важкий бомбер)
+  //
+  const T_motor_max_N   = (realThrust / 1000) * g / n_motors; // Н, тяга 1 мотора при 100%
+  const throttle_hover  = T_motor_max_N > 0
+    ? Math.sqrt(Math.min(1, (weightN / n_motors) / T_motor_max_N))
+    : 0.50; // газ для зависання = sqrt(1/TWR)
+
+  // Крейс: з урахуванням CG-навантаженого мотора і кута нахилу
+  const throttle_cruise_raw = T_motor_max_N > 0
+    ? Math.sqrt(Math.min(1, T_motor_loaded_N / T_motor_max_N))
+    : throttle_hover + 0.04;
+  const throttle_cruise = Math.min(0.85, Math.max(throttle_hover, throttle_cruise_raw));
+
+
+  // ── Крейсерська потужність — momentum theory (правильна фізика) ──────────
+  // P_total = P_induced + P_parasite
+  //   P_induced = T_cruise² / (2·ρ·A_disk·v)  ← зменшується зі швидкістю!
+  //   P_parasite = 0.5·ρ·CdS·v³               ← зростає зі швидкістю
+  //
+  // При крейсі P_total < P_hover для v > v_min_induced (~30+ км/г)
+  // Тому КРЕЙС ЕКОНОМНІШИЙ за зависання — саме тому пілот долітає!
+  const T_cruise_total_N = T_cruise_N; // загальна тяга крейсу (Н)
+  const P_induced_cruise = T_cruise_total_N**2 / (2 * rho * A_disk * Math.max(v_cruise_ms, 1));
+  const P_parasite_cruise = 0.5 * rho * CdS.x * Math.pow(v_cruise_ms, 3);
+  const P_mech_cruise     = P_induced_cruise + P_parasite_cruise;
+  const eta_overall       = 0.80; // ККД двигун+гвинт
+
+  // Порівняння з hover для відображення пілоту:
+  const P_hover_W  = weightN * Math.sqrt(weightN / (2 * rho * A_disk)); // механічна
+  const P_cruise_vs_hover_pct = Math.round((P_mech_cruise / Math.max(1, P_hover_W) - 1) * 100);
+  // від'ємне = крейс економніший за hover, додатнє = дорожче (при дуже малій швидкості)
+
+  const P_elec_cruise      = P_mech_cruise / eta_overall;
+  const I_total_cruise_base = P_elec_cruise / Math.max(1, voltNom);
+  let   I_cruise_iter      = I_total_cruise_base / n_motors;
+  I_cruise_iter = Math.min(I_cruise_iter, inp.esc_max_a);
+  I_cruise_iter = Math.max(I_cruise_iter, I0);
+
+  // ── CG: задні мотори навантажені більше, передні — менше ────────────────
+  // Але ЗАГАЛЬНА потужність не зростає суттєво (бо момент від F_drag малий).
+  // Ефект на ТЕМПЕРАТУРУ задніх моторів: вони гарячіші.
+  // Ефект на ЗАГАЛЬНИЙ СТРУМ: мінімальний (cg_current_boost ≈ 1.0–1.05).
+  const cg_current_boost = Math.sqrt((cg_load_factor_clamped**2 + 1) / 2);
+  I_cruise_iter = I_cruise_iter * cg_current_boost;
+
+  // Струм на задній і передній мотор окремо (для теплової моделі):
+  const I_cruise_rear  = I_cruise_iter * cg_load_factor_clamped; // більше
+  const I_cruise_front = I_cruise_iter * (2 - cg_load_factor_clamped); // менше
+
+  const I_cruise_total = I_cruise_iter * n_motors;
+  const P_cruise_W     = Math.round(I_cruise_total * voltNom);
+  const I_cruise_calc  = I_cruise_total;
+
+  // ── v1.0: Wind shear correction (використовуємо ефективну швидкість вітру на висоті польоту) ──
+  const windShearModel = inp.wind_shear_model || 'log';
+  const windAtAlt = windSpeedAtAlt(inp.wind_speed, inp.mission_alt, windShearModel);
+  const windAngleRad = inp.wind_angle * Math.PI / 180;
+  const windHead_ms = windAtAlt * Math.cos(windAngleRad);
+  const groundSpeed_ms = Math.max(2, v_cruise_ms - windHead_ms);
+  const groundSpeed_kmh = groundSpeed_ms * 3.6;
+  // I (вітер на висоті) — корекція для PID; зберігаємо для звіту
+  const windEffect_pct = windAtAlt > 0 ? ((windAtAlt / Math.max(0.01, inp.wind_speed) - 1) * 100).toFixed(0) : '0';
+
+  // ═══════════════════════════════════════════════════════════════
+  // 8. ТЕПЛОВА МОДЕЛЬ МОТОРА — ТИМЧАСОВО СПРОЩЕНА (фіксовані значення)
+  // ═══════════════════════════════════════════════════════════════
+  // ── Теплова модель мотора (відновлена) ──────────────────────────────────────
+  // Джерело: спрощена RC-аналогія:  τ·dT/dt = P_loss − h·(T − T_amb)
+  // h_conv = 5 + 0.3·v  [Вт/К] — природна + примусова конвекція від обдуву гвинтом
+  // C_th   = 70 Дж/К    — теплова ємність обмоток (типово для 2206-2407)
+  // gamma  = 0.004 /°C  — температурний коеф. опору міді
+  const gamma_mot  = 0.004;               // 1/°C, мідь
+  const C_th       = 70.0;               // Дж/К, теплова ємність
+  const T_amb      = inp.temperature;    // °C, температура навколишнього середовища
+  const h_conv_S   = 5.0 + 0.30 * 2.0;  // Вт/К при зльоті (vz ≈ 2 м/с)
+
+  // Зліт: пік температури
+  const I_climb_th  = I_motor * 1.25;                         // струм зльоту з запасом
+  const Rm_climb    = Rm * (1 + gamma_mot * 40);              // Rm при 65°C (стартова оцінка)
+  const P_loss_climb = I_climb_th**2 * Rm_climb;              // Вт, втрати в обмотках
+  const T_climb_ss  = T_amb + P_loss_climb / h_conv_S;       // стаціонарна T при зльоті
+  const tau_climb   = C_th / h_conv_S;                        // с, теплова постійна
+  const T_peak      = T_amb + (T_climb_ss - T_amb) * (1 - Math.exp(-climbTimeSec / tau_climb));
+
+  // Крейсер: усталена температура — окремо для задніх і передніх моторів
+  const v_air_ms      = v_cruise_ms;
+  const h_conv_cruise = 5.0 + 0.30 * v_air_ms;                     // Вт/К при крейсері
+
+  // Задні мотори (більш навантажені при крейсі через момент F_drag):
+  const P_loss_rear   = I_cruise_rear**2  * Rm * (1 + gamma_mot * (T_peak - 25));
+  const T_cruise_rear = T_amb + P_loss_rear  / h_conv_cruise;
+
+  // Передні мотори (менш навантажені):
+  const P_loss_front  = I_cruise_front**2 * Rm * (1 + gamma_mot * (T_peak - 25));
+  const T_cruise_front= T_amb + P_loss_front / h_conv_cruise;
+
+  // Для відображення беремо гірший випадок (задні):
+  const P_loss_cruise = P_loss_rear;
+  const T_cruise_ss   = T_cruise_rear;
+
+  const T_motor_est    = Math.round(Math.min(T_peak, 150));
+  const T_motor_cruise = Math.round(Math.min(T_cruise_ss, 150));
+  const T_motor_cruise_front = Math.round(Math.min(T_cruise_front, 150));
+  const motor_overheat = T_motor_est > 90 || T_motor_cruise > 85;
+
+  // Для сумісності з ділянками графіка
+  const P_loss_motor = I_motor**2 * Rm;
+  const Rm_hot       = Rm * (1 + gamma_mot * Math.max(0, T_motor_est - 25));
+  // thermalPhases будується нижче, після обчислення cruiseTimeHours
+
+
+  // ═══════════════════════════════════════════════════════════════
+  // 9. ЕНЕРГЕТИКА (v6.0) — динамічний резерв
+  // ═══════════════════════════════════════════════════════════════
+  const voltSag = voltNom - (irActual / 1000) * I_motor * n_motors;
+  const climbCurrentTotal = I_motor * n_motors * 1.2;
+  const climbPowerW = climbCurrentTotal * Math.max(voltSag, voltNom * 0.85);
+
+  // Динамічний резерв (v6.0): енергія для повернення з half-way при мін. швидкості
+  // v_return = v_opt при попутньому вітрі → менший струм → більша відстань
+  const v_return_ms = Math.max(3, v_cruise_ms * 0.8 + inp.wind_speed * Math.cos(windAngleRad));
+  const P_return_W = P0_hover + 0.5 * rho * CdS.x * v_return_ms**3;
+  const t_return_h = (inp.mission_dist / 2) / Math.max(1, v_return_ms * 3.6) / 1;
+  const E_reserve_Wh = Math.max(energyWh * 0.05, P_return_W * t_return_h);
+  const reserve_pct = (E_reserve_Wh / energyWh * 100).toFixed(1);
+
+  const climbEnergyWh = climbPowerW * (climbTimeSec / 3600);
+  const cruiseEnergyWh = Math.max(0, energyWh - climbEnergyWh - E_reserve_Wh);
+  const climbEnergyPct = Math.round((climbEnergyWh / energyWh) * 100);
+
+  // I_eff = ефективний крейсерський струм НА БАТАРЕЮ (всі мотори + втрати)
+  // I_cruise_calc = I_cruise_total (всі n_motors), voltSag = напруга під навантаженням
+  // Потужність крейсу: P_cruise_W Вт; час = енергія / потужність
+  const P_cruise_eff = Math.max(1, P_cruise_W); // Вт
+  const cruiseTimeHours = cruiseEnergyWh / P_cruise_eff;
+  // Теплові фази для графіка (залежить від cruiseTimeHours — тому тут)
+  const thermalPhases = [
+    {label:'старт', t:0,            T: T_amb},
+    {label:'зліт',  t:climbTimeSec, T: T_motor_est},
+    {label:'крейс', t:climbTimeSec + cruiseTimeHours * 3600, T: T_motor_cruise},
+  ];
+  const FLIGHT_TIME_EFFICIENCY = 0.85;
+  const totalFlightTimeMin = Math.round((cruiseTimeHours * 60 + climbTimeSec / 60) * FLIGHT_TIME_EFFICIENCY);
+  const maxRangeKm = (cruiseTimeHours * groundSpeed_kmh).toFixed(1);
+
+  // ── МІНІМАЛЬНА ШВИДКІСТЬ ДЛЯ ДОЛЬОТУ місії ─────────────────────────────
+  // throttle_cruise ≈ sqrt(1/TWR) — майже константа, не залежить від швидкості.
+  // Варіювати для дольоту треба ШВИДКІСТЬ, а не газ.
+  // Бісекція: шукаємо мінімальну v де d(v) = v × E_cruise/P(v) >= mission_dist
+  let v_mission_lo = 5 / 3.6, v_mission_hi = 250 / 3.6;
+  for (let k = 0; k < 40; k++) {
+    const v_mid = (v_mission_lo + v_mission_hi) / 2;
+    const P_mid = (0.5*rho*CdS.x*v_mid**3 + weightN**2/(2*rho*A_disk*v_mid)) / eta_overall;
+    const d_mid = v_mid * 3.6 * cruiseEnergyWh / Math.max(1, P_mid);
+    if (d_mid >= inp.mission_dist) v_mission_hi = v_mid; else v_mission_lo = v_mid;
+  }
+  const v_min_mission_ms  = v_mission_hi;
+  const v_min_mission_kmh = +(v_min_mission_ms * 3.6).toFixed(0);
+  // Чи взагалі досяжна місія?
+  const missionReachable = parseFloat(maxRangeKm) >= inp.mission_dist;
+  // Рекомендована швидкість = v_opt (max дальність/Вт), але не менше v_min
+  const v_rec_ms   = Math.max(v_cruise_ms, v_min_mission_ms);
+  const v_rec_kmh  = +(v_rec_ms * 3.6).toFixed(0);
+  // throttle при рекомендованій швидкості:
+  const F_drag_rec   = 0.5 * rho * CdS.x * v_rec_ms**2;
+  const T_cruise_rec = Math.sqrt(weightN**2 + F_drag_rec**2) / Math.cos(Math.atan(F_drag_rec / weightN));
+  const throttle_rec = +(Math.sqrt(Math.min(1, (T_cruise_rec/n_motors) / Math.max(1e-6, T_motor_max_N))) * 100).toFixed(0);
+
+  // ═══════════════════════════════════════════════════════════════
+  // 10. ФІЛЬТРИ ТА ІНШІ BETAFLIGHT ПАРАМЕТРИ
+  // ═══════════════════════════════════════════════════════════════
+  let gyro_lpf  = Math.round(analysisData.resonanceFreq * 0.85 * noiseMult.filterFactor);
+  let dterm_lpf = Math.round(analysisData.resonanceFreq * 0.67 * noiseMult.filterFactor);
+  if(missionType === 'kamikaze') { gyro_lpf = Math.round(gyro_lpf * 1.20); dterm_lpf = Math.round(dterm_lpf * 1.15); }
+  if(inp.prop_material === 'carbon') { gyro_lpf = Math.round(gyro_lpf * 1.10); }
+
+  let ff_boost_base = +(0.9 * p1.ff_mult).toFixed(1);
+  if(inp.prop_material === 'carbon')  ff_boost_base = +(ff_boost_base * 0.85).toFixed(1);
+  else if(inp.prop_material === 'plastic') ff_boost_base = +(ff_boost_base * 1.15).toFixed(1);
+
+  const ag_base = Math.min(90, Math.round(30 + (totalWeight / 1000) * 15));
+  const anti_gravity = Math.round(ag_base * p1.ag_mult);
+
+  const vbat_sag = Math.min(1.0, +(0.7 + analysisData.ir / 200).toFixed(1));
+  const throttle_boost = Math.min(1.5, +(0.4 + analysisData.ir / 100).toFixed(1));
+
+  const idleBase = inp.prop_size >= 12 ? 26 : inp.prop_size >= 10 ? 22 : inp.prop_size >= 7 ? 19 : 14;
+  const idlePitchBonus = inp.prop_pitch > 4.5 ? 2 : inp.prop_pitch > 3 ? 1 : 0;
+  const idleMaterialBonus = inp.prop_material === 'carbon' ? -1 : inp.prop_material === 'plastic' ? 1 : 0;
+  const dynamic_idle = Math.max(12, idleBase + idlePitchBonus + idleMaterialBonus);
+  const rpm_harmonics = missionType === 'kamikaze' ? 1 : 2;
+  const dyn_notch_q = missionType === 'kamikaze' ? 60 : analysisData.dTermNoise === 'high' ? 100 : 80;
+  const iterm_relax_cutoff = missionType === 'kamikaze' ? 20 : 15;
+  const iterm_relax_type = missionType === 'kamikaze' ? 'RPY' : 'RP';
+  const tpa_rate = missionType === 'kamikaze' ? 30 : missionType === 'bomber' ? 10 : 20;
+  const tpa_breakpoint = missionType === 'kamikaze' ? 1250 : 1500;
+  const dyn_damping_gain = missionType === 'bomber' ? 40 : missionType === 'kamikaze' ? 15 : 25;
+  const dyn_damping_adv  = missionType === 'bomber' ? 30 : missionType === 'kamikaze' ? 5  : 15;
+
+  calcResults = {
+    inp,
+    rho: rho.toFixed(4), rhoNorm: (rhoNorm*100).toFixed(1),
+    P_h: Math.round(P_h), T_K: T_K.toFixed(1), e_sat: Math.round(e_sat), e: Math.round(e),
+    irActual: irActual.toFixed(1),
+    batt_cap_actual: Math.round(batt_cap_actual), eta_bat: (eta_bat*100).toFixed(1),
+    n_rps: n_rps.toFixed(0), I_motor: I_motor.toFixed(1), voltSag: voltSag.toFixed(2),
+    voltPerCell_sag: voltPerCell_sag.toFixed(2),
+    realThrust, totalWeight, twr: p1.twr.toFixed(2), twrNum: p1.twr,
+    energyWh: energyWh.toFixed(1), energyWh_raw: energyWh_raw.toFixed(1),
+    flightTimeMin: totalFlightTimeMin, maxRangeKm, missionDist: inp.mission_dist,
+    climbTimeSec, climbCurrent: Math.round(climbCurrentTotal),
+    climbEnergyWh: climbEnergyWh.toFixed(2), cruiseEnergyWh: cruiseEnergyWh.toFixed(2),
+    climbEnergyPct, climbAlt, vz_practical,
+    v_opt_kmh: v_opt_kmh.toFixed(1), cruiseSpeedKmh: cruiseSpeedOptAdj.toFixed(1),
+    groundSpeedKmh: groundSpeed_kmh.toFixed(1), theta_deg: theta_deg,
+    P_cruise_W: Math.round(P_cruise_W), T_motor_est, motor_overheat,
+    reserve_pct, E_reserve_Wh: E_reserve_Wh.toFixed(2),
+    // limits (v6.0)
+    esc_current_ok, batt_current_ok, brownout_risk, converged, iter_count,
+    thrustWarning, thrustDivergePct: thrustDivergePct.toFixed(1), thrustG_density,
+    batt_max_A: Math.round(batt_max_A),
+    bladeCorr: bladeCorr.toFixed(2),
+    p1, p2, missionType, wearLevel,
+    filters: { gyro_lpf, dterm_lpf },
+    ff_boost: ff_boost_base, anti_gravity, vbat_sag, throttle_boost,
+    dynamic_idle, rpm_harmonics, dyn_notch_q,
+    iterm_relax_cutoff, iterm_relax_type,
+    tpa_rate, tpa_breakpoint, dyn_damping_gain, dyn_damping_adv,
+    motorMult, noiseMult, wearMult, CT: CT.toFixed(4), CP: CP.toFixed(4),
+    // v1.0 new fields
+    Re_hover: Math.round(Re_hover), Re_confidence,
+    Re_corr_CT: Re_corr_CT.toFixed(3), Re_corr_CP: Re_corr_CP.toFixed(3),
+    isNonlinearMotor, Rm_actual: (Rm_actual*1000).toFixed(1),
+    T_motor_cruise, thermalPhases,
+    windAtAlt: windAtAlt.toFixed(1), windEffect_pct, windShearModel,
+    // v8.0 new fields
+    throttle_cruise: (throttle_cruise * 100).toFixed(0),
+    throttle_hover:  (throttle_hover  * 100).toFixed(0),
+    I_cruise_iter:   I_cruise_iter.toFixed(1),
+    I_cruise_rear:   I_cruise_rear.toFixed(1),
+    I_cruise_front:  I_cruise_front.toFixed(1),
+    T_motor_cruise_front,
+    P_cruise_vs_hover_pct,
+    mu_air_calc: (mu_air * 1e5).toFixed(3),
+    // Мінімальна швидкість і газ для дольоту місії
+    v_min_mission_kmh, throttle_rec, v_rec_kmh, missionReachable,
+    // CG cruise redistribution
+    cg_offset_mm:    cgX_mm.toFixed(1),
+    cg_offset_pct:   cg_offset_pct.toFixed(0),
+    cg_load_factor:  cg_load_factor_clamped.toFixed(2),
+    cg_current_boost:(cg_current_boost * 100 - 100).toFixed(0), // % збільшення
+    T_front_N:       T_front_N.toFixed(2),
+    T_rear_N:        T_rear_N.toFixed(2),
+    // missing vars needed by _renderCalcSteps
+    h: h,
+    propD: propD,
+    U_iter: U_iter,
+    vz_equil: vz_equil,
+    v_return_ms: v_return_ms,
+  };
+
+  // ── Рендер кроків розрахунку винесено в окрему функцію ─────────────────────
+  _renderCalcSteps(calcResults);
+} // end _runCalculationsCore
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER CALCULATION STEPS — відокремлено від логіки розрахунку
+// Отримує готовий об'єкт результатів, нічого не обчислює.
+// ═══════════════════════════════════════════════════════════════
+function _renderCalcSteps(r) {
+  const body           = document.getElementById('calc-steps-body');
+  const inp            = r.inp;
+  const rhoNorm        = parseFloat(r.rhoNorm) / 100;
+  const I_motor        = parseFloat(r.I_motor);
+  const n_rps          = parseFloat(r.n_rps);
+  const T_motor_est    = r.T_motor_est;
+  const motor_overheat = r.motor_overheat;
+  const I_sat_threshold = 35.0;
+  const Rm_actual      = parseFloat(r.Rm_actual) / 1000;
+  const isNonlinearMotor = r.isNonlinearMotor;
+  const converged      = r.converged;
+  const iter_count     = r.iter_count;
+  const thrustWarning  = r.thrustWarning;
+  const thrustDivergePct = parseFloat(r.thrustDivergePct);
+  const batt_max_A     = r.batt_max_A;
+  const esc_current_ok = r.esc_current_ok;
+  const batt_current_ok = r.batt_current_ok;
+  const brownout_risk  = r.brownout_risk;
+  const voltPerCell_sag = parseFloat(r.voltPerCell_sag);
+  const p1             = r.p1;
+  const p2             = r.p2;
+  const missionType    = r.missionType;
+  const wearLevel      = r.wearLevel;
+  const gyro_lpf       = r.filters.gyro_lpf;
+  const dterm_lpf      = r.filters.dterm_lpf;
+  const v_opt_kmh      = parseFloat(r.v_opt_kmh);
+  const cruiseSpeedOptAdj = parseFloat(r.cruiseSpeedKmh);
+  const theta_deg      = r.theta_deg;
+  const P_cruise_W     = r.P_cruise_W;
+  const throttle_cruise = parseFloat(r.throttle_cruise) / 100;
+  const windAtAlt      = parseFloat(r.windAtAlt);
+  const windEffect_pct = r.windEffect_pct;
+  const windShearModel = r.windShearModel;
+  const groundSpeed_kmh = parseFloat(r.groundSpeedKmh);
+  const climbAlt       = r.climbAlt;
+  const climbTimeSec   = r.climbTimeSec;
+  const vz_practical   = r.vz_practical;
+  const E_reserve_Wh   = parseFloat(r.E_reserve_Wh);
+  const reserve_pct    = r.reserve_pct;
+  const climbEnergyWh  = parseFloat(r.climbEnergyWh);
+  const cruiseEnergyWh = parseFloat(r.cruiseEnergyWh);
+  const totalFlightTimeMin = r.flightTimeMin;
+  const maxRangeKm     = r.maxRangeKm;
+  const thermalPhases  = r.thermalPhases;
+  const motorMult      = r.motorMult;
+  const noiseMult      = r.noiseMult;
+  const h              = r.h;
+  const propD          = parseFloat(r.propD);
+  const U_iter         = parseFloat(r.U_iter);
+  const vz_equil       = parseFloat(r.vz_equil);
+  const v_return_ms    = parseFloat(r.v_return_ms);
+  // physics vars used in HTML render
+  const P_h            = r.P_h;
+  const T_K            = { toFixed: (n) => parseFloat(r.T_K).toFixed(n) };
+  const rho            = { toFixed: (n) => parseFloat(r.rho).toFixed(n) };
+  const e              = r.e;
+  const e_sat          = r.e_sat;
+  const batt_cap_actual = r.batt_cap_actual;
+  const irActual       = { toFixed: (n) => parseFloat(r.irActual).toFixed(n) };
+  const eta_bat        = { toFixed: (n) => (parseFloat(r.eta_bat)).toFixed(n) };
+  const energyWh       = { toFixed: (n) => parseFloat(r.energyWh).toFixed(n) };
+  const energyWh_raw   = { toFixed: (n) => parseFloat(r.energyWh_raw).toFixed(n) };
+  const CT             = { toFixed: (n) => parseFloat(r.CT).toFixed(n) };
+  const CP             = { toFixed: (n) => parseFloat(r.CP).toFixed(n) };
+  const bladeCorr      = r.bladeCorr;
+  const Re_hover       = r.Re_hover;
+  const Re_confidence  = r.Re_confidence;
+  const Re_corr_CT     = { toFixed: (n) => parseFloat(r.Re_corr_CT).toFixed(n) };
+  const Re_corr_CP     = { toFixed: (n) => parseFloat(r.Re_corr_CP).toFixed(n) };
+  const voltSag        = { toFixed: (n) => parseFloat(r.voltSag).toFixed(n) };
+  const realThrust     = r.realThrust;
+  const totalWeight    = r.totalWeight;
+  const twr            = r.twr;
+  const T_motor_cruise = r.T_motor_cruise;
+  const thrustG_density = r.thrustG_density;
+  const mu_air_calc    = r.mu_air_calc;
+  const I_cruise_iter  = { toFixed: (n) => parseFloat(r.I_cruise_iter).toFixed(n) };
+  // ── (далі оригінальний код рендеру)
+  const wearLabel = {new:'новий (+0%)', medium:'середній (P −5%)', worn:'зношений (P −12%, D −5%)'}[wearLevel];
+  const motorLabel = analysisData.motorLinearity === 'poor' ? 'Погана → P ×0.88' : 'Добра → без змін';
+  const noiseLabel = analysisData.dTermNoise === 'high' ? 'Високий → фільтри ×0.80' : 'Низький → без змін';
+  const convergeStr = converged
+    ? `<span style="color:var(--green)">✓ збіжність за ${iter_count} ітерацій</span>`
+    : `<span style="color:var(--red)">⚠ не збіжний (${iter_count} ітерацій) — перевірте kV/Rm</span>`;
+  const thrustWarnStr = thrustWarning
+    ? `<span style="color:var(--amber)"> ⚠ розбіжність ${thrustDivergePct.toFixed(0)}% з паспортом — перевірте kV/CT</span>`
+    : `<span style="color:var(--text3)"> ✓ розбіжність ${thrustDivergePct.toFixed(0)}%</span>`;
+  const escWarnStr = !esc_current_ok
+    ? `<span style="color:var(--red)">⛔ ПЕРЕВИЩЕННЯ: ${I_motor.toFixed(1)}А > ${inp.esc_max_a}А ESC!</span>`
+    : `<span style="color:var(--green)">✓ ${I_motor.toFixed(1)}А < ${inp.esc_max_a}А</span>`;
+  const battWarnStr = !batt_current_ok
+    ? `<span style="color:var(--red)">⛔ ПЕРЕВИЩЕННЯ: ${(I_motor*4).toFixed(1)}А > ${Math.round(batt_max_A)}А батарея!</span>`
+    : `<span style="color:var(--green)">✓ ${(I_motor*4).toFixed(1)}А < ${Math.round(batt_max_A)}А</span>`;
+  const brownoutStr = brownout_risk
+    ? `<span style="color:var(--red)">⛔ BROWNOUT РИЗИК: ${voltPerCell_sag.toFixed(2)}В/банку < 3.3В!</span>`
+    : `<span style="color:var(--green)">✓ ${voltPerCell_sag.toFixed(2)}В/банку ≥ 3.3В</span>`;
+  const motorTempStr = motor_overheat
+    ? `<span style="color:var(--red)">⛔ ПЕРЕГРІВ: ${T_motor_est}°C > 90°C!</span>`
+    : `<span style="color:var(--green)">✓ ${T_motor_est}°C < 90°C</span>`;
+
+  // ── v1.0: Pre-compute nested HTML strings to avoid nested backticks (mobile fix) ──
+  const nonlinearRow = isNonlinearMotor
+    ? '<div class="analysis-item"><div class="analysis-icon">\u26a0\ufe0f</div><div class="analysis-label">3\u0433. <span style="color:var(--amber)">\u041d\u0415\u041b\u0406\u041d\u0406\u0419\u041d\u0418\u0419 \u0420\u0415\u0416\u0418\u041c: I=' + I_motor.toFixed(1) + '\u0410 > ' + I_sat_threshold + '\u0410 \u2014 \u043d\u0430\u0441\u0438\u0447\u0435\u043d\u043d\u044f \u0441\u0442\u0430\u043b\u0456</span></div><div class="analysis-value">Rm_eff=' + (Rm_actual*1000).toFixed(1) + ' \u043c\u041e\u043c (\u043d\u043e\u043c\u0456\u043d\u0430\u043b ' + inp.motor_resistance + ' \u043c\u041e\u043c)</div></div>'
+    : '';
+
+  const thermalChart = renderThermalChart(thermalPhases);
+  const thermalBarsHtml = thermalChart.barsHtml;
+  const thermalLabelsHtml = thermalChart.labelsHtml;
+
+  const windShearLabel = inp.wind_shear_model === 'log' ? '\u043b\u043e\u0433.' : inp.wind_shear_model === 'power' ? '\u0441\u0442\u0435\u043f.' : '\u043f\u043e\u0441\u0442.';
+  const missionP1Label = missionType === 'bomber' ? '(\u0417 \u0412\u0410\u041d\u0422\u0410\u0416\u0415\u041c)' : '';
+  const p1TwrColor = p1.twr >= 2 ? 'green' : p1.twr >= 1.5 ? 'amber' : 'red';
+
+  const p2Html = p2
+    ? '<div class="section-divider">\u041f\u0420\u041e\u0424\u0406\u041b\u042c 2 \u2014 \u041f\u0406\u0421\u041b\u042f \u0421\u041a\u0418\u0414\u0410\u041d\u041d\u042f \u0412\u0410\u041d\u0422\u0410\u0416\u0423</div>'
+      + '<div class="analysis-item"><div class="analysis-icon">\ud83d\udca3</div><div class="analysis-label">\u0412\u0430\u0433\u0430 \u043f\u0456\u0441\u043b\u044f \u0441\u043a\u0438\u0434\u0430\u043d\u043d\u044f / TWR</div><div class="analysis-value">' + p2.totalW + ' \u0433 / TWR <span style="color:var(--green)">' + p2.twr.toFixed(2) + '</span></div></div>'
+      + '<div class="analysis-item"><div class="analysis-icon">\ud83d\udcd0</div><div class="analysis-label">P / I \u043f\u0456\u0441\u043b\u044f \u0441\u043a\u0438\u0434\u0430\u043d\u043d\u044f</div><div class="analysis-value">P=' + p2.P + ' / I_roll=' + p2.I_roll + ' / I_pitch=' + p2.I_pitch + '</div></div>'
+      + '<div class="analysis-item"><div class="analysis-icon">\u2139\ufe0f</div><div class="analysis-label">\u041f\u0440\u043e\u0444\u0456\u043b\u044c 2 \u0430\u043a\u0442\u0438\u0432\u0443\u0432\u0430\u0442\u0438 \u0442\u0443\u043c\u0431\u043b\u0435\u0440\u043e\u043c AUX \u0434\u043e \u0442\u043e\u0447\u043a\u0438 \u0441\u043a\u0438\u0434\u0430\u043d\u043d\u044f</div><div class="analysis-value" style="color:var(--amber)">profile 2</div></div>'
+    : '';
+
+  body.innerHTML =
+    '<div class="section-divider">АТМОСФЕРНА МОДЕЛЬ ISA + ВОЛОГІСТЬ (v1.0)</div>'
+    + '<div class="analysis-item"><div class="analysis-icon">💨</div><div class="analysis-label">1. Тиск на висоті ' + h + 'м [ISA]</div><div class="analysis-value">' + Math.round(P_h) + ' Па / T=' + T_K.toFixed(0) + ' К</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">💧</div><div class="analysis-label">1б. Пара (' + inp.humidity + '%, ' + (inp.temperature < 0 ? 'лід' : 'вода') + ')</div><div class="analysis-value">e=' + Math.round(e) + ' Па / e_sat=' + Math.round(e_sat) + ' Па</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🌡</div><div class="analysis-label">1в. ρ = P/(R_moist·T)</div><div class="analysis-value"><strong style="color:var(--green)">' + rho.toFixed(4) + ' кг/м³</strong> (' + (rhoNorm*100).toFixed(1) + '% від ISA 1.225)</div></div>'
+    + '<div class="section-divider">МОДЕЛЬ БАТАРЕЇ — деградація + IR(T) + ефективність</div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🔋</div><div class="analysis-label">2. Деградація: ' + inp.batt_cycles + ' цикл × 0.1% [DOD=80%]</div><div class="analysis-value">' + Math.round(batt_cap_actual) + ' мАг з ' + inp.batt_mah + ' мАг пасп.</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🌡</div><div class="analysis-label">2б. IR(T): R = R₂₅·(1+0.03·ΔT) при ' + inp.temperature + '°C</div><div class="analysis-value">' + irActual.toFixed(1) + ' мОм (пасп. ' + analysisData.ir + ' мОм)</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">⚡</div><div class="analysis-label">2в. Корисна енергія (η_bat=' + (eta_bat*100).toFixed(1) + '%, DOD=80%)</div><div class="analysis-value">' + energyWh.toFixed(1) + ' Вт·г (сира: ' + energyWh_raw.toFixed(1) + ' Вт·г)</div></div>'
+    + '<div class="section-divider">ЕЛЕКТРОМЕХАНІЧНА МОДЕЛЬ МОТОР + ГВИНТ (v1.0 — Re + нелінійний Rm)</div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🔬</div><div class="analysis-label">3. Re корекція CT/CP [μ=' + mu_air_calc + '×10⁻⁵ Па·с, Сазерленд] <span class="confidence-badge confidence-' + Re_confidence + '" style="margin-left:8px">' + (Re_confidence==='high'?'Re: висока точність':Re_confidence==='med'?'Re: середня точність':'Re: мала (увага!)') + '</span></div><div class="analysis-value">Re=' + Math.round(Re_hover/1000) + 'k / CT×' + Re_corr_CT.toFixed(3) + ' CP×' + Re_corr_CP.toFixed(3) + '</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🌀</div><div class="analysis-label">3б. CT=' + CT.toFixed(4) + ' / CP=' + CP.toFixed(4) + ' [pitch=' + inp.prop_pitch + '" / ' + inp.prop_blades + 'L / blade=×' + bladeCorr + ']</div><div class="analysis-value">D=' + propD.toFixed(3) + ' м</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">⚙️</div><div class="analysis-label">3в. NR: U=' + U_iter.toFixed(2) + 'В / n=' + n_rps.toFixed(0) + ' об/с ' + convergeStr + '</div><div class="analysis-value">I=' + I_motor.toFixed(1) + ' А/мот × 4 = ' + (I_motor*4).toFixed(1) + ' А</div></div>'
+    + nonlinearRow
+    + '<div class="analysis-item"><div class="analysis-icon">🚀</div><div class="analysis-label">3д. Тяга ітераційна vs паспорт×ρ ' + thrustWarnStr + '</div><div class="analysis-value"><strong style="color:var(--green)">' + realThrust + ' г</strong> / пасп×ρ: ' + thrustG_density + ' г</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">⚖️</div><div class="analysis-label">3е. Вага / TWR (профіль 1)</div><div class="analysis-value">' + totalWeight + ' г / TWR <strong style="color:var(--' + p1TwrColor + ')">' + p1.twr.toFixed(2) + '</strong></div></div>'
+    + '<div class="section-divider">ПЕРЕВІРКИ ЛІМІТІВ СИСТЕМИ</div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🔌</div><div class="analysis-label">L1. ESC: ' + I_motor.toFixed(1) + ' А/мот vs ліміт ' + inp.esc_max_a + ' А</div><div class="analysis-value">' + escWarnStr + '</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🔋</div><div class="analysis-label">L2. Батарея: ' + (I_motor*4).toFixed(1) + ' А vs ' + inp.batt_c_rate + 'C × ' + (inp.batt_mah/1000).toFixed(2) + 'Ач = ' + Math.round(batt_max_A) + ' А</div><div class="analysis-value">' + battWarnStr + '</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">⚡</div><div class="analysis-label">L3. Напруга: ' + voltSag.toFixed(2) + 'В / ' + voltPerCell_sag.toFixed(2) + 'В/банку</div><div class="analysis-value">' + brownoutStr + '</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🌡</div><div class="analysis-label">L4. Темп. мотора — ПІК зліт / крейс стац. (v1.0 динамічна)</div><div class="analysis-value">' + motorTempStr + ' / крейс: ' + T_motor_cruise + '°C</div></div>'
+    + '<div class="analysis-item" style="padding-left:36px"><div style="width:100%">'
+    + '<div style="font-family:&quot;Share Tech Mono&quot;,monospace;font-size:10px;color:var(--text3);margin-bottom:6px">ТЕМПЕРАТУРНА ТРАЄКТОРІЯ:</div>'
+    + '<div class="thermal-timeline">' + thermalBarsHtml + '</div>'
+    + '<div style="display:flex;gap:2px;margin-top:3px">' + thermalLabelsHtml + '</div>'
+    + '</div></div>'
+    + '<div class="section-divider">ДИНАМІКА ЗЛЬОТУ — RK4 + змінна ρ(h)</div>'
+    + '<div class="analysis-item"><div class="analysis-icon">⬆️</div><div class="analysis-label">4. RK4: m·dvz/dt = T − mg − ½ρ(h)CdSz·vz²</div><div class="analysis-value">vz_рівн=' + vz_equil.toFixed(1) + ' м/с / сер.=' + vz_practical + ' м/с</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">⏱</div><div class="analysis-label">4б. Час набору ' + climbAlt + 'м</div><div class="analysis-value"><strong>' + climbTimeSec + ' с</strong></div></div>'
+    + '<div class="section-divider">КРЕЙСЕР + ВІТЕР ЗА ПРОФІЛЕМ (v1.0)</div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🎯</div><div class="analysis-label">5. v_opt = (2P₀/ρCdSx)^(1/3)</div><div class="analysis-value">v_opt=' + v_opt_kmh.toFixed(1) + ' км/г → адаптовано: ' + cruiseSpeedOptAdj.toFixed(1) + ' км/г</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">📐</div><div class="analysis-label">5б. θ = atan(F_drag/mg) / газ крейс.</div><div class="analysis-value">θ=' + theta_deg + '° / P=' + P_cruise_W + ' Вт / <span style="color:var(--amber)">газ≈' + (throttle_cruise*100).toFixed(0) + '%</span></div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🌬</div><div class="analysis-label">5в. Вітер: ' + inp.wind_speed + ' м/с (земля) → ' + windAtAlt + ' м/с на ' + inp.mission_alt + 'м [' + windShearLabel + ' профіль, +' + windEffect_pct + '%]</div><div class="analysis-value">Наземна: ' + groundSpeed_kmh.toFixed(1) + ' км/г</div></div>'
+    + '<div class="section-divider">ЕНЕРГЕТИЧНИЙ БАЛАНС — динамічний резерв</div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🔄</div><div class="analysis-label">6. Резерв: v_ret=' + (v_return_ms*3.6).toFixed(1) + ' км/г</div><div class="analysis-value">' + E_reserve_Wh.toFixed(2) + ' Вт·г (' + reserve_pct + '% заряду)</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">⚡</div><div class="analysis-label">6б. Зліт / резерв / крейсер</div><div class="analysis-value">' + climbEnergyWh.toFixed(2) + ' / ' + E_reserve_Wh.toFixed(2) + ' / ' + cruiseEnergyWh.toFixed(2) + ' Вт·г</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🛸</div><div class="analysis-label">6в. Час × 0.85 / Макс. дальність</div><div class="analysis-value"><strong style="color:var(--green)">~' + totalFlightTimeMin + ' хв / ~' + maxRangeKm + ' км</strong></div></div>'
+    + '<div class="section-divider">КОРЕКЦІЙНІ КОЕФІЦІЄНТИ PID</div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🔩</div><div class="analysis-label">Знос компонентів</div><div class="analysis-value">' + wearLabel + '</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">🌀</div><div class="analysis-label">Лінійність моторів</div><div class="analysis-value">' + motorLabel + '</div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">📉</div><div class="analysis-label">Шумовий поріг D-term</div><div class="analysis-value">' + noiseLabel + '</div></div>'
+    + '<div class="section-divider">PID РЕЗУЛЬТАТ — ПРОФІЛЬ 1 ' + missionP1Label + '</div>'
+    + '<div class="analysis-item"><div class="analysis-icon">📐</div><div class="analysis-label">P: TWR + інерція (×' + p1.inertiaPcorr.toFixed(2) + ') + місія + знос</div><div class="analysis-value">P = <strong style="color:var(--green)">' + p1.P + '</strong></div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">📐</div><div class="analysis-label">D: k_density=(0.6+0.4×' + rhoNorm.toFixed(2) + ') + матеріал + шум</div><div class="analysis-value">D = <strong style="color:var(--green)">' + p1.D + '</strong></div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">📐</div><div class="analysis-label">I: вітер на ' + inp.mission_alt + 'м | w_pitch=' + p1.w_x + ' / w_roll=' + p1.w_y + ' м/с</div><div class="analysis-value">I_roll=' + p1.I_roll + ' / I_pitch=<strong style="color:var(--amber)">' + p1.I_pitch + '</strong></div></div>'
+    + '<div class="analysis-item"><div class="analysis-icon">📐</div><div class="analysis-label">Фільтри — FFT ' + analysisData.resonanceFreq + ' Гц</div><div class="analysis-value">Gyro ' + gyro_lpf + ' Гц / Dterm ' + dterm_lpf + ' Гц</div></div>'
+    + p2Html;
+
+  document.getElementById('to-results-btn').style.display='inline-block';
+} // end _renderCalcSteps
+
+// ═══════════════════════════════════════════
+// STEP 5: RESULTS RENDER
+// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+// RENDER HELPERS — розбито з renderResults (v8.0)
+// ═══════════════════════════════════════════
+
+function _buildIssues(r) {
+  const issues = [];
+  const maxRangeNum     = parseFloat(r.maxRangeKm);
+  const energyWhNum     = parseFloat(r.energyWh);
+  const voltNom         = r.inp.batt_s * 3.7;
+  const targetEnergyWh  = maxRangeNum > 0 ? (r.missionDist / maxRangeNum) * energyWhNum : energyWhNum;
+  const targetCapMah    = Math.round((targetEnergyWh / voltNom) * 1000 / 0.8);
+  const payloadRatio    = maxRangeNum > 0 ? r.missionDist / maxRangeNum : 1;
+  const payloadToReduce = Math.max(0, Math.round(r.inp.w_payload * (1 - 1 / payloadRatio)));
+  const targetWeight20  = Math.round(r.realThrust / 2.0);
+  const weightToSave    = Math.max(0, r.totalWeight - targetWeight20);
+  const thrustNeeded    = Math.round(r.totalWeight * 2.0);
+  const thrustDelta     = Math.max(0, thrustNeeded - r.realThrust);
+  const irNorm = 25;
+  const irDelta = Math.max(0, analysisData.ir - irNorm);
+  const cannotClimb = r.twrNum < 1.05;
+  const climbEnergyPctNum = r.climbEnergyPct || 0;
+
+  // 0. ЗЛІТ
+  if (cannotClimb) {
+    issues.push({ priority:0, type:'danger', icon:'💥', problem:'ДРОН НЕ ЗЛЕТИТЬ — TWR < 1.05',
+      recs:['Зменшіть вагу або збільшіть тягу (більші мотори / гвинти)', 'TWR поточний: '+r.twr+' — потрібно мінімум 1.1'] });
+  } else if (climbEnergyPctNum > 30) {
+    issues.push({ priority:1, type:'caution', icon:'⬆️', problem:'Зліт споживає '+climbEnergyPctNum+'% заряду (норма < 30%)',
+      recs:['Збільшіть ємність батареї або зменшіть висоту місії', 'Поточна тяга: '+r.realThrust+' г'] });
+  } else {
+    issues.push({ priority:2, type:'info', icon:'✅', problem:'Зліт: '+r.climbTimeSec+' с / '+climbEnergyPctNum+'% заряду',
+      recs:['Показник у нормі. Максимальна швидкість набору: '+r.vz_practical+' м/с'] });
+  }
+
+  // 1. ДАЛЬНІСТЬ
+  if (!isFinite(maxRangeNum) || maxRangeNum < r.missionDist) {
+    issues.push({ priority:0, type:'danger', icon:'📡', problem:'Дальність '+r.maxRangeKm+' км < місія '+r.missionDist+' км',
+      recs:[
+        'Потрібна батарея ~'+targetCapMah+' мАг (поточна '+r.inp.batt_mah+' мАг)',
+        payloadToReduce > 0 ? 'Або зменшіть вантаж на '+payloadToReduce+' г' : 'Розгляньте зменшення аеродинамічного опору',
+        'Летіти на v_opt='+r.v_opt_kmh+' км/г — найекономніша швидкість для цього дрона',
+      ] });
+  } else {
+    issues.push({ priority:2, type:'info', icon:'🛫', problem:'Дальність '+r.maxRangeKm+' км ≥ місія '+r.missionDist+' км',
+      recs:[
+        'Зависання: '+r.throttle_hover+'% стіку (TWR='+r.twr+') · крейс: '+r.throttle_cruise+'% (+нахил)',
+        'Мін. швидкість для дольоту '+r.missionDist+' км: ≥'+r.v_min_mission_kmh+' км/г',
+        'Рекомендована крейсерська: '+r.v_rec_kmh+' км/г | запас: '+(maxRangeNum - r.missionDist).toFixed(1)+' км',
+      ] });
+  }
+
+  // 2. TWR
+  if (r.twrNum < 2.0) {
+    const isCritical = r.twrNum < 1.5;
+    issues.push({ priority: isCritical ? 0 : 1, type: isCritical ? 'danger' : 'caution',
+      icon: isCritical ? '⚠️' : '📉', problem:'TWR '+r.twr+' — '+(isCritical?'критично мало (< 1.5)':'на межі (< 2.0)'),
+      recs: [
+        weightToSave > 0 ? 'Зменшіть вагу на '+weightToSave+' г (поточна '+r.totalWeight+' г → ціль '+targetWeight20+' г)' : '',
+        thrustDelta > 0 ? 'Або збільшіть тягу: потрібно '+thrustNeeded+' г (не вистачає '+thrustDelta+' г)' : '',
+      ].filter(Boolean) });
+  }
+
+  // 3. IR БАТАРЕЇ
+  if (analysisData.ir > irNorm) {
+    const isHigh = analysisData.ir > 40;
+    issues.push({ priority: isHigh ? 0 : 1, type: isHigh ? 'danger' : 'caution',
+      icon:'🔋', problem:'IR батареї '+analysisData.ir+' мОм (норма < '+irNorm+' мОм)',
+      recs:[ 'Перевищення на '+irDelta+' мОм → просадка напруги під навантаженням',
+        isHigh ? 'Замініть батарею — ризик brownout та пожежі' : 'Рекомендується замінити батарею найближчим часом' ] });
+  }
+
+  // 4. ЛІНІЙНІСТЬ МОТОРІВ
+  if (analysisData.motorLinearity === 'poor') {
+    issues.push({ priority:1, type:'caution', icon:'🌀', problem:'Нелінійність моторів: P знижено на 12%',
+      recs:['Перевірте підшипники та намотку моторів', 'Розгляньте заміну або перемотку'] });
+  }
+
+  // 5. LIMITS (v6.0)
+  if (!r.esc_current_ok) {
+    issues.push({ priority:0, type:'danger', icon:'⚡', problem:'ESC струм перевищено: '+Math.round(r.climbCurrent)+' А > '+r.inp.esc_max_a+' А',
+      recs:['Замініть ESC на '+Math.ceil(r.climbCurrent * 1.2 / 10)*10+'А або більше',
+        'Або зменшіть max_thrust / вагу дрона'] });
+  }
+  if (!r.batt_current_ok) {
+    issues.push({ priority:0, type:'danger', icon:'🔥', problem:'Батарея: перевищення C-rate',
+      recs:['Струм зльоту '+Math.round(r.climbCurrent)+' А перевищує '+r.batt_max_A+' А ('+r.inp.batt_c_rate+'C)',
+        'Використайте батарею з вищим C-rate або більшою ємністю'] });
+  }
+  if (r.brownout_risk) {
+    issues.push({ priority:0, type:'danger', icon:'💡', problem:'Ризик brownout: напруга падає нижче 3.3 В/комір.',
+      recs:['Voltсаг: '+r.voltSag+' В → '+(r.inp.batt_s)+' × '+r.voltPerCell_sag+' В/комір.',
+        'Збільшіть ємність або зменшіть IR батареї'] });
+  }
+  if (r.motor_overheat) {
+    const cruiseHot = r.T_motor_cruise > 85;
+    issues.push({ priority:1, type:'caution', icon:'🌡️',
+      problem:'Температура мотора: пік '+r.T_motor_est+'°C'+(cruiseHot ? ' / крейс '+r.T_motor_cruise+'°C ⚠️' : ''),
+      recs:[
+        r.T_motor_est > 90 ? 'Ризик розмагнічування магнітів при пікові > 100°C' : 'Пік близький до межі',
+        'Скоротіть фазу зльоту або встановіть активне охолодження',
+        cruiseHot
+          ? 'На крейсі '+r.T_motor_cruise+'°C > 85°C — знизьте швидкість або газ'
+          : 'На крейсі '+r.T_motor_cruise+'°C — прийнятно',
+      ] });
+  }
+
+  // 5a. THRUST VALIDATION
+  if (!r.converged) {
+    issues.push({ priority:1, type:'caution', icon:'🔄', problem:'Ітераційна модель не збіглась ('+r.iter_count+' ітерацій)',
+      recs:['Результати менш точні. Перевірте: kV='+r.inp.motor_kv+', Rm='+r.inp.motor_resistance+' мОм'] });
+  }
+  if (r.thrustWarning) {
+    issues.push({ priority:1, type:'caution', icon:'⚠️', problem:'Розбіжність тяги: ітерація vs. щільність = '+r.thrustDivergePct+'%',
+      recs:['Перевірте коректність kV мотора та опору обмоток'] });
+  }
+
+  // 6. МІСІЯ
+  if (r.missionType === 'kamikaze') {
+    issues.push({ priority:2, type:'info', icon:'🎯', problem:'Режим КАМІКАДЗЕ: агресивний PID',
+      recs:['Фільтри пом\'якшені для швидшої реакції', 'Перевірте стабільність на малій висоті'] });
+  } else if (r.missionType === 'bomber') {
+    issues.push({ priority:2, type:'info', icon:'💣', problem:'Режим БОМБЕР: два профілі PID',
+      recs:['Profile 1 (з вантажем) → Profile 2 (після скидання) — переключіть AUX до атаки',
+        'Вага без вантажу: '+(r.totalWeight - r.inp.w_payload)+' г / TWR: '+r.p2?.twr.toFixed(2)] });
+  }
+
+  // 6b. CG ЗМІЩЕННЯ — вплив на крейсерський струм
+  const cgOffsetMm  = parseFloat(r.cg_offset_mm  || 0);
+  const cgBoostPct  = parseFloat(r.cg_current_boost || 0);
+  const cgLoadFact  = parseFloat(r.cg_load_factor || 1);
+  if (Math.abs(cgOffsetMm) > 5 && cgBoostPct > 2) {
+    const dir = cgOffsetMm > 0 ? 'вперед (передні мотори навантажені)' : 'назад (задні мотори навантажені)';
+    const severity = Math.abs(cgOffsetMm) > 20 ? 'danger' : Math.abs(cgOffsetMm) > 10 ? 'caution' : 'info';
+    const icon = severity === 'danger' ? '⚖️' : severity === 'caution' ? '⚖️' : '📐';
+    issues.push({ priority: severity === 'danger' ? 1 : severity === 'caution' ? 1 : 2,
+      type: severity, icon,
+      problem: 'CG зміщений на ' + Math.abs(cgOffsetMm).toFixed(1) + ' мм ' + dir,
+      recs: [
+        'Перерозподіл тяги: передні ' + (parseFloat(r.T_front_N||0)*1000/9.81).toFixed(0) + ' г / задні ' + (parseFloat(r.T_rear_N||0)*1000/9.81).toFixed(0) + ' г',
+        'Навантажені мотори: ×' + cgLoadFact.toFixed(2) + ' від середньої тяги → +' + cgBoostPct + '% до крейсерського струму',
+        Math.abs(cgOffsetMm) > 20
+          ? 'Критичне зміщення! Перемістіть батарею або вантаж ближче до центру'
+          : 'Рекомендується зменшити зміщення CG < 15 мм для рівномірного зносу моторів',
+      ]
+    });
+  }
+
+  // 7. ЗАГАЛЬНИЙ INFO
+  issues.push({ priority:2, type:'info', icon:'🧠', problem:'Фізична модель v8.0: Сазерленд + ітерація крейсеру',
+    recs:[
+      'Re=' + r.Re_hover + ' (CT×'+r.Re_corr_CT+', CP×'+r.Re_corr_CP+') | μ=' + r.mu_air_calc + '×10⁻⁵ Па·с',
+      'Крейс. газ: '+r.throttle_cruise+'% | I_крейс: '+r.I_cruise_iter+' А/мотор | T_мотора: '+r.T_motor_cruise+'°C'
+        + (cgBoostPct > 2 ? ' (+'+r.cg_current_boost+'% CG)' : ''),
+      'Ефективність батареї: '+r.eta_bat+'% | IR факт.: '+r.irActual+' мОм',
+    ] });
+
+  issues.sort((a, b) => a.priority - b.priority);
+  return issues;
+}
+
+function _renderWarningsHtml(issues) {
+  const warnings = issues.filter(function(i){ return i.type === 'danger'; }).map(function(i){ return { type:'danger', icon:i.icon, text:i.problem }; });
+  if (!warnings.length) warnings.push({ type:'info', icon:'✅', text:'Усі критичні параметри в нормі.' });
+  return warnings.length
+    ? '<div class="warnings">' + warnings.map(function(w) {
+        return '<div class="warning ' + w.type + '"><span class="warning-icon">' + w.icon + '</span>' + w.text + '</div>';
+      }).join('') + '</div>'
+    : '';
+}
+
+function _renderRecommendationsCard(issues) {
+  return `<div class="card">
+    <div class="card-header">
+      <span class="card-icon">💡</span>
+      <span class="card-title">РЕКОМЕНДАЦІЇ ЩОДО ПОЛІПШЕННЯ</span>
+      <span style="margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text3)">${issues.length} пунктів</span>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column;gap:0">
+      ${issues.map((iss, idx) => {
+        const borderColor = iss.type==='danger' ? 'var(--red)' : iss.type==='caution' ? 'var(--amber)' : 'var(--blue)';
+        const labelColor  = iss.type==='danger' ? 'var(--red)' : iss.type==='caution' ? 'var(--amber)' : 'var(--blue)';
+        const priorityTag = iss.priority===0
+          ? `<span style="font-family:'Orbitron',monospace;font-size:9px;letter-spacing:2px;padding:2px 7px;background:var(--red);color:#fff;border-radius:2px">КРИТИЧНО</span>`
+          : iss.priority===1
+          ? `<span style="font-family:'Orbitron',monospace;font-size:9px;letter-spacing:2px;padding:2px 7px;background:var(--amber);color:#000;border-radius:2px">УВАГА</span>`
+          : `<span style="font-family:'Orbitron',monospace;font-size:9px;letter-spacing:2px;padding:2px 7px;background:var(--blue);color:#fff;border-radius:2px">ІНФО</span>`;
+        return `<div style="border-left:3px solid ${borderColor};padding:16px 0 16px 20px;${idx < issues.length-1 ? 'border-bottom:1px solid var(--border)' : ''}">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+            <span style="font-size:18px;flex-shrink:0">${iss.icon}</span>
+            <span style="font-size:14px;font-weight:600;color:${labelColor};flex:1;line-height:1.4">${iss.problem}</span>
+            ${priorityTag}
+          </div>
+          <div style="padding-left:28px">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:2px;margin-bottom:8px">РЕКОМЕНДАЦІЇ</div>
+            ${iss.recs.map((rec, ri) => `<div style="display:flex;gap:10px;align-items:flex-start;padding:5px 0;${ri < iss.recs.length-1 ? 'border-bottom:1px solid var(--border)' : ''}">
+                <span style="color:var(--green);font-size:14px;flex-shrink:0;margin-top:1px">🔹</span>
+                <span style="font-size:14px;color:var(--text2);line-height:1.5">${rec}</span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function _renderMetricsCard(r) {
+  const rangeOk   = parseFloat(r.maxRangeKm) >= r.missionDist;
+  const twrColor  = r.twrNum < 1.5 ? 'danger' : r.twrNum < 2.0 ? 'warn' : 'green';
+  const typeLabel = {normal:'STANDARD', kamikaze:'КАМІКАДЗЕ', bomber:'БОМБЕР'}[r.missionType];
+  const typeBadge = {normal:'badge-normal', kamikaze:'badge-kamikaze', bomber:'badge-bomber'}[r.missionType];
+  return `<div class="card">
+    <div class="card-header">
+      <span class="card-icon">📊</span>
+      <span class="card-title">ОСНОВНІ ПАРАМЕТРИ МІСІЇ</span>
+      <span class="card-badge ${typeBadge}" style="margin-left:auto">${typeLabel}</span>
+    </div>
+    <div class="card-body">
+      <div class="grid-4">
+        <div class="metric-big">
+          <div class="num ${twrColor}">${r.twr}</div>
+          <div class="unit2">TWR</div>
+          <div class="label2">Тяга / вага</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text3);margin-top:4px">зависання: <span style="color:var(--text2)">${r.throttle_hover}%</span> · крейс: <span style="color:var(--green)">${r.throttle_cruise}%</span></div>
+        </div>
+        <div class="metric-big">
+          <div class="num green">${r.flightTimeMin}</div>
+          <div class="unit2">ХВ</div>
+          <div class="label2">Час польоту (з набором)</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text3);margin-top:4px">зліт ${r.climbTimeSec} с / I=${r.I_cruise_iter} А/мот.${ parseFloat(r.cg_current_boost) > 3 ? ` <span style="color:var(--amber)">+${r.cg_current_boost}% CG</span>` : '' }</div>
+        </div>
+        <div class="metric-big">
+          <div class="num ${rangeOk?'green':'danger'}">${r.maxRangeKm}</div>
+          <div class="unit2">КМ</div>
+          <div class="label2">Макс. дальність</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:${rangeOk?'var(--green)':'var(--red)'};margin-top:4px">${rangeOk ? '≥ місія ✓' : '< місія ' + r.missionDist + ' км ✗'}</div>
+        </div>
+        <div class="metric-big">
+          <div class="num green">${r.totalWeight}</div>
+          <div class="unit2">Г</div>
+          <div class="label2">Загальна вага</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text3);margin-top:4px">зад: ${r.T_motor_cruise}°C · пер: ${r.T_motor_cruise_front}°C крейс${r.P_cruise_vs_hover_pct < 0 ? ` <span style="color:var(--green)">(${r.P_cruise_vs_hover_pct}% vs hover)</span>` : ''}</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _renderPIDCards(r) {
+  let html = `<div class="card">
+    <div class="card-header">
+      <span class="card-icon">⚙️</span>
+      <span class="card-title">PID — ${r.missionType==='bomber'?'ПРОФІЛЬ 1: З ВАНТАЖЕМ':'РЕКОМЕНДОВАНІ'}</span>
+    </div>
+    <div class="card-body">${renderPIDGrid(r.p1, r.missionType)}</div>
+  </div>`;
+  if (r.p2) {
+    html += `<div class="card">
+      <div class="card-header">
+        <span class="card-icon">💣</span>
+        <span class="card-title">PID — ПРОФІЛЬ 2: ПІСЛЯ СКИДАННЯ ВАНТАЖУ</span>
+        <span class="card-badge badge-bomber" style="margin-left:auto">−${r.inp.w_payload} г</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:13px;color:var(--text3);margin-bottom:16px">Переключити тумблером AUX до атаки. TWR після скидання: <strong style="color:var(--green)">${r.p2.twr.toFixed(2)}</strong></p>
+        ${renderPIDGrid(r.p2, 'bomber-profile2')}
+      </div>
+    </div>`;
+  }
+  return html;
+}
+
+function _renderFiltersCard(r) {
+  const typeLabel = {normal:'STANDARD', kamikaze:'КАМІКАДЗЕ', bomber:'БОМБЕР'}[r.missionType];
+  const filterItems = [
+    {l:'Gyro LPF',       v:r.filters.gyro_lpf+' Гц',  s:'FFT пік × корекція'},
+    {l:'Dterm LPF',      v:r.filters.dterm_lpf+' Гц', s:'Агресивний фільтр'},
+    {l:'FF Boost',       v:r.ff_boost,                 s:'Інерція + матеріал + місія'},
+    {l:'Anti-Gravity',   v:r.anti_gravity,              s:'Вага × тип місії'},
+    {l:'Vbat Sag',       v:r.vbat_sag,                 s:'IR = '+analysisData.ir+' мОм'},
+    {l:'Throttle Boost', v:r.throttle_boost,            s:'Компенсація батареї'},
+    {l:'Dynamic Idle',   v:r.dynamic_idle+'00 RPM',     s:'Для '+r.inp.prop_size+'" пропелерів'},
+    {l:'TPA Rate',       v:r.tpa_rate+'%',              s:'Тип місії: '+typeLabel},
+    {l:'TPA Break',      v:r.tpa_breakpoint,            s:'Точка відсікання'},
+    {l:'Dyn.Damp.Gain',  v:r.dyn_damping_gain,         s:'Динамічне демпфування'},
+    {l:'iterm Relax',    v:r.iterm_relax_type,          s:'cutoff: '+r.iterm_relax_cutoff},
+    {l:'Dyn.Notch Q',    v:r.dyn_notch_q,              s:'Шум: '+analysisData.dTermNoise},
+  ];
+  return `<div class="card">
+    <div class="card-header"><span class="card-icon">🔧</span><span class="card-title">ФІЛЬТРИ ТА РОЗШИРЕНІ ПАРАМЕТРИ</span></div>
+    <div class="card-body">
+      <div class="filter-grid">
+        ${filterItems.map(m => `<div class="filter-item">
+          <div class="f-label">${m.l}</div>
+          <div class="f-val">${m.v}</div>
+          <div class="f-sub">${m.s}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+function _renderCLICard(r) {
+  return `<div class="card">
+    <div class="card-header"><span class="card-icon">💻</span><span class="card-title">КОМАНДИ BETAFLIGHT CLI — 30+ ПАРАМЕТРІВ</span></div>
+    <div class="card-body">
+      ${r.missionType==='bomber' ? `<div class="profile-tabs">
+        <button class="profile-tab active" onclick="switchCLIProfile(1,this)">PROFILE 1: З ВАНТАЖЕМ</button>
+        <button class="profile-tab" onclick="switchCLIProfile(2,this)">PROFILE 2: ПІСЛЯ СКИДАННЯ</button>
+      </div>` : ''}
+      <div class="cli-block" id="cli-output">${generateCLI(r, 1)}</div>
+      <button class="copy-btn" onclick="copyCLI()">📋 КОПІЮВАТИ CLI-КОМАНДИ</button>
+    </div>
+  </div>`;
+}
+
+function _renderNextStepsCard(r) {
+  const rangeOk = parseFloat(r.maxRangeKm) >= r.missionDist;
+  const steps = [
+    ['1','Оцінити ризики',
+      'Дальність '+r.maxRangeKm+' км '+(rangeOk?'≥':'<')+' місія '+r.missionDist+' км. '+(rangeOk?'Запас є.':'Недостатньо — скоригуйте параметри!')+' TWR='+r.twr+'.'],
+    ['2','Внести команди в Betaflight',
+      'Скопіювати CLI-блок → вставити в CLI Betaflight → Enter після кожного блоку.'],
+    ['3','Тестовий виліт',
+      'Перевірити поведінку поруч. '+(r.missionType==='bomber'?'Перевірити обидва профілі: з вантажем і після скидання.':'Перевірте реакцію на стіках і стабільність.')],
+    ['4','Записати новий лог',
+      'Після тестового польоту знову завантажити у калькулятор для уточнення FFT та IR.'],
+  ];
+  return `<div class="card">
+    <div class="card-header"><span class="card-icon">👨‍✈️</span><span class="card-title">НАСТУПНІ КРОКИ ПІЛОТА</span></div>
+    <div class="card-body">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        ${steps.map(([n,t,d]) => `<div style="display:flex;gap:16px;align-items:flex-start">
+          <div style="font-family:'Orbitron',monospace;font-size:20px;font-weight:900;color:var(--green);min-width:30px">${n}</div>
+          <div><div style="font-size:15px;font-weight:600;color:var(--text);margin-bottom:3px">${t}</div>
+          <div style="font-size:13px;color:var(--text3);line-height:1.6">${d}</div></div>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════
+// CG CALCULATOR (v8.0) — Центр Ваги для Бомбер
+// ═══════════════════════════════════════════
+let cgComponents = [];
+
+function addCGComponent() {
+  cgComponents.push({ name:'', mass:0, x:0, y:0 });
+  renderCGModule();
+}
+
+function removeCGComponent(idx) {
+  cgComponents.splice(idx, 1);
+  renderCGModule();
+}
+
+function updateCGComponent(idx, field, val) {
+  cgComponents[idx][field] = field === 'name' ? val : (parseFloat(val) || 0);
+  calcCG();
+}
+
+function calcCG() {
+  const totalMass = cgComponents.reduce((s, c) => s + c.mass, 0);
+  if (totalMass <= 0) return null;
+  const cgX = cgComponents.reduce((s, c) => s + c.mass * c.x, 0) / totalMass;
+  const cgY = cgComponents.reduce((s, c) => s + c.mass * c.y, 0) / totalMass;
+  return { cgX: cgX.toFixed(1), cgY: cgY.toFixed(1), totalMass: Math.round(totalMass) };
+}
+
+function renderCGModule() {
+  const el = document.getElementById('cg-module');
+  if (!el) return;
+
+  const cg = calcCG();
+  const cgX = cg ? parseFloat(cg.cgX) : 0;
+  const cgY = cg ? parseFloat(cg.cgY) : 0;
+  const cgOk = Math.abs(cgX) < 15 && Math.abs(cgY) < 15;
+  const cgWarn = (!cgOk) && (Math.abs(cgX) < 30 && Math.abs(cgY) < 30);
+
+  const statusColor = !cg ? 'var(--text3)' : cgOk ? 'var(--green)' : cgWarn ? 'var(--amber)' : 'var(--red)';
+  const statusText  = !cg ? 'Додайте компоненти' : cgOk ? '✅ CG в нормі' : cgWarn ? '⚠️ CG зміщений' : '❌ CG критично зміщений!';
+
+  el.innerHTML = `
+    <div class="card" style="border-color:var(--amber)">
+      <div class="card-header">
+        <span class="card-icon">⚖️</span>
+        <span class="card-title">ЦЕНТР ВАГИ (CG) — БОМБЕР</span>
+        <span style="margin-left:auto;font-family:'Share Tech Mono',monospace;font-size:12px;color:${statusColor}">${statusText}</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12px;color:var(--text3);margin-bottom:12px">Вказуйте масу та координати (мм від центру рами). X = вперед/назад, Y = ліво/право.</p>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-family:'Share Tech Mono',monospace;font-size:12px">
+            <thead><tr>
+              <th style="text-align:left;padding:6px 8px;color:var(--text3);border-bottom:1px solid var(--border)">Компонент</th>
+              <th style="padding:6px 8px;color:var(--text3);border-bottom:1px solid var(--border)">Маса, г</th>
+              <th style="padding:6px 8px;color:var(--text3);border-bottom:1px solid var(--border)">X, мм</th>
+              <th style="padding:6px 8px;color:var(--text3);border-bottom:1px solid var(--border)">Y, мм</th>
+              <th style="padding:6px 8px;border-bottom:1px solid var(--border)"></th>
+            </tr></thead>
+            <tbody>
+              ${cgComponents.map((c, i) => `<tr>
+                <td style="padding:4px 8px"><input type="text" value="${c.name}"
+                  oninput="updateCGComponent(${i},'name',this.value)"
+                  style="width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text1);padding:4px 6px;font-family:'Share Tech Mono',monospace;font-size:12px;border-radius:3px"></td>
+                <td style="padding:4px 8px"><input type="number" value="${c.mass}"
+                  oninput="updateCGComponent(${i},'mass',this.value)"
+                  style="width:70px;background:var(--bg3);border:1px solid var(--border);color:var(--text1);padding:4px 6px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:12px;border-radius:3px"></td>
+                <td style="padding:4px 8px"><input type="number" value="${c.x}"
+                  oninput="updateCGComponent(${i},'x',this.value)"
+                  style="width:70px;background:var(--bg3);border:1px solid var(--border);color:var(--text1);padding:4px 6px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:12px;border-radius:3px"></td>
+                <td style="padding:4px 8px"><input type="number" value="${c.y}"
+                  oninput="updateCGComponent(${i},'y',this.value)"
+                  style="width:70px;background:var(--bg3);border:1px solid var(--border);color:var(--text1);padding:4px 6px;text-align:center;font-family:'Share Tech Mono',monospace;font-size:12px;border-radius:3px"></td>
+                <td style="padding:4px 8px;text-align:center">
+                  <button onclick="removeCGComponent(${i})" style="background:none;border:1px solid var(--red);color:var(--red);padding:2px 8px;cursor:pointer;border-radius:3px;font-size:12px">✕</button>
+                </td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;margin-top:12px;flex-wrap:wrap">
+          <button onclick="addCGComponent()" style="font-family:'Share Tech Mono',monospace;font-size:12px;background:none;border:1px solid var(--green);color:var(--green);padding:6px 16px;cursor:pointer;border-radius:3px">+ ДОДАТИ КОМПОНЕНТ</button>
+          ${cg ? `<span style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--text1)">
+            Загальна маса: <strong>${cg.totalMass} г</strong> &nbsp;|&nbsp;
+            CG X: <strong style="color:${cgOk?'var(--green)':cgWarn?'var(--amber)':'var(--red)'}">${cg.cgX} мм</strong> &nbsp;|&nbsp;
+            CG Y: <strong style="color:${cgOk?'var(--green)':cgWarn?'var(--amber)':'var(--red)'}">${cg.cgY} мм</strong>
+          </span>` : ''}
+        </div>
+        ${cg && !cgOk ? `<div style="margin-top:12px;padding:10px 14px;border-left:3px solid ${cgWarn?'var(--amber)':'var(--red)'};font-size:13px;color:${cgWarn?'var(--amber)':'var(--red)'}">
+          ${cgWarn ? '⚠️ CG зміщений понад 15 мм від центру. Дрон матиме асиметрію у відгуку — скоригуйте розміщення батареї або вантажу.'
+                   : '❌ КРИТИЧНЕ зміщення CG понад 30 мм! Дрон може бути некерованим. Обов\'язково переставте компоненти.'}
+        </div>` : ''}
+      </div>
+    </div>`;
+}
+
+function initCGModule() {
+  if (!calcResults) return;
+  const r = calcResults;
+  // Pre-populate with drone components
+  cgComponents = [
+    { name:'Рама + електроніка', mass: r.inp.w_drone * 0.6, x:0,   y:0 },
+    { name:'Мотори (4×)',        mass: r.inp.w_drone * 0.2, x:0,   y:0 },
+    { name:'Батарея',            mass: r.inp.w_battery,     x:0,   y:0 },
+    { name:'Корисний вантаж',    mass: r.inp.w_payload,     x:50,  y:0 },
+  ].filter(c => c.mass > 0);
+  // Round masses
+  cgComponents.forEach(c => { c.mass = Math.round(c.mass); });
+  renderCGModule();
+}
+
+// ═══════════════════════════════════════════
+// MAIN renderResults — тепер тонка оркестрація
+// ═══════════════════════════════════════════
+function renderResults() {
+  if (!calcResults) return;
+  const r = calcResults;
+
+  const issues  = _buildIssues(r);
+  const warningsHtml = _renderWarningsHtml(issues);
+
+  document.getElementById('results-container').innerHTML =
+    warningsHtml
+    + _renderRecommendationsCard(issues)
+    + _renderMetricsCard(r)
+    + (r.missionType === 'bomber' ? '<div id="cg-module"></div>' : '')
+    + _renderPIDCards(r)
+    + _renderFiltersCard(r)
+    + _renderCLICard(r)
+    + _renderNextStepsCard(r)
+    + `<div class="btn-group">
+        <button class="btn btn-secondary" onclick="goStep(3)">← ЗМІНИТИ ПАРАМЕТРИ</button>
+        <button id="save-profile-btn" class="btn btn-secondary" onclick="saveProfile()" style="border-color:var(--amber);color:var(--amber)">💾 ЗБЕРЕГТИ ПРОФІЛЬ</button>
+        <button class="btn btn-primary" onclick="window.print()">🖨 ЗБЕРЕГТИ ЗВІТ</button>
+      </div>
+      <div id="profile-comparison" style="display:none;margin-top:16px">
+        <div class="section-divider" style="margin-bottom:10px">📊 ПОРІВНЯННЯ ПРОФІЛІВ</div>
+      </div>`;
+
+  if (r.missionType === 'bomber') initCGModule();
+  renderProfileComparison();
+}
+
+
+function renderPIDGrid(pid, mtype) {
+  const axes = [
+    {key:'roll',  label:'ROLL',  color:'#ff6644', P:pid.P, I:pid.I_roll,  D:pid.D, note:''},
+    {key:'pitch', label:'PITCH', color:'var(--amber)', P:pid.P, I:pid.I_pitch, D:pid.D,
+      note: pid.I_pitch !== pid.I_roll ? `I збільшено (вітер/місія)` : ''},
+    {key:'yaw',   label:'YAW',   color:'var(--blue)',  P:pid.yaw_P, I:pid.yaw_I, D:0, note:''},
+  ];
+  return `<div class="pid-grid">
+    ${axes.map(a=>`
+      <div class="pid-axis">
+        <div class="pid-axis-name ${a.key}">${a.label}</div>
+        ${['P','I','D'].map(t=>{
+          const v = t==='P' ? a.P : t==='I' ? a.I : a.D;
+          return `<div class="pid-row">
+            <span class="pid-letter">${t}</span>
+            <div class="pid-bar"><div class="pid-bar-fill" style="width:${Math.min(100,(v/100)*100)}%;background:${a.color}"></div></div>
+            <span class="pid-val">${v}</span>
+          </div>`;
+        }).join('')}
+        ${a.note ? `<div style="margin-top:8px;font-size:11px;color:var(--text3);font-family:'Share Tech Mono',monospace">${a.note}</div>` : ''}
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function switchCLIProfile(n, el) {
+  document.querySelectorAll('.profile-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('cli-output').innerHTML = generateCLI(calcResults, n);
+}
+
+// ═══════════════════════════════════════════
+// CLI GENERATOR (30+ params)
+// ═══════════════════════════════════════════
+function generateCLI(r, profileNum) {
+  const d = new Date().toISOString().slice(0,10);
+  const pid = profileNum === 2 ? r.p2 : r.p1;
+  const profLabel = r.missionType==='bomber' && profileNum===2 ? 'PROFILE 2 — ПІСЛЯ СКИДАННЯ' : (r.missionType==='bomber' ? 'PROFILE 1 — З ВАНТАЖЕМ' : 'SINGLE PROFILE');
+  const mLabel = {normal:'STANDARD',kamikaze:'КАМІКАДЗЕ',bomber:'БОМБЕР'}[r.missionType];
+
+  const lines = [
+    ['comment',`# =====================================================`],
+    ['comment',`# FPV PID CALCULATOR v1.0 — BETAFLIGHT CLI`],
+    ['comment',`# Дата: ${d}  |  Місія: ${mLabel}  |  ${profLabel}`],
+    ['comment',`# Пропелер: ${r.inp.prop_size}" ${r.inp.prop_blades}L ${r.inp.prop_material}  |  Вага: ${profileNum===2?pid.totalW:r.totalWeight} г  |  TWR: ${pid.twr.toFixed(2)}`],
+    ['comment',`# Мотор: ${r.inp.motor_kv}kV / Rm=${r.inp.motor_resistance}мОм  |  NR збіжність: ${r.converged?'✓':'⚠ не збіжний'} (${r.iter_count} іт.)  |  Знос: ${r.wearLevel}`],
+    ['comment',`# Струм: ${r.I_motor}А/мот × 4 = ${(+r.I_motor*4).toFixed(1)}А  |  ESC:${r.esc_current_ok?'OK':'ПЕРЕВИЩЕННЯ!'} / Бат:${r.batt_current_ok?'OK':'ПЕРЕВИЩЕННЯ!'} / Brownout:${r.brownout_risk?'РИЗИК!':'OK'}`],
+    ['comment',`# T_мотор: ~${r.T_motor_est}°C ${r.motor_overheat?'⛔ ПЕРЕГРІВ!':'✓'}  |  IR(T): ${r.irActual} мОм  |  Uсаг: ${r.voltSag}В (${r.voltPerCell_sag}В/S)`],
+    ['comment',`# Зліт ${r.climbAlt}м: ${r.climbTimeSec}с RK4 (vz=${r.vz_practical} м/с) | ${r.climbEnergyPct}% заряду`],
+    ['comment',`# Крейсер: v_opt=${r.v_opt_kmh} км/г → ${r.cruiseSpeedKmh} км/г | θ=${r.theta_deg}° | P=${r.P_cruise_W}Вт | наземна: ${r.groundSpeedKmh} км/г`],
+    ['comment',`# CG: зміщ.=${r.cg_offset_mm}мм | тяга перед/зад=${parseFloat(r.T_front_N||0)>0?(parseFloat(r.T_front_N)*1000/9.81).toFixed(0):'?'}г/${parseFloat(r.T_rear_N||0)>0?(parseFloat(r.T_rear_N)*1000/9.81).toFixed(0):'?'}г | навант.×${r.cg_load_factor} → +${r.cg_current_boost}% струму`],
+    ['comment',`# Резерв: ${r.E_reserve_Wh} Вт·г (${r.reserve_pct}% — повернення з ½ дистанції) | ρ=${r.rho} кг/м³`],
+    ['comment',`# =====================================================`],
+    // Inline recommendations summary — критичні і важливі
+    ...(() => {
+      const cliIssues = [];
+      if(parseFloat(r.maxRangeKm) < r.missionDist)
+        cliIssues.push(['comment',`# ⚠ ДАЛЬНІСТЬ: ${r.maxRangeKm} км < ${r.missionDist} км — збільшіть батарею до ~${Math.round((r.missionDist/parseFloat(r.maxRangeKm))*r.inp.batt_mah/100)*100} mAh`]);
+      if(r.twrNum < 2.0)
+        cliIssues.push(['comment',`# ⚠ TWR: ${r.twr} — зменшіть вагу на ${Math.max(0,r.totalWeight-Math.round(r.realThrust/2))} г або збільшіть тягу`]);
+      if(analysisData.ir > 25)
+        cliIssues.push(['comment',`# ⚠ IR: ${analysisData.ir} мОм — замінити батарею або прогріти до 20°C`]);
+      if(analysisData.motorLinearity === 'poor')
+        cliIssues.push(['comment',`# ⚠ МОТОРИ: погана лінійність — оновити ESC прошивку, перевірити паяння`]);
+      return cliIssues.length ? [['comment','# --- РЕКОМЕНДАЦІЇ ---'], ...cliIssues, ['']] : [['']];
+    })(),
+    ['section',`# --- ПРОФІЛЬ BETAFLIGHT ---`],
+    r.missionType==='bomber' ? ['cmd','profile',profileNum===2?'2':'1'] : ['cmd','profile','1'],
+    [''],
+    ['section','# --- PID ---'],
+    ['cmd','set',`roll_p = ${pid.P}`],
+    ['cmd','set',`roll_i = ${pid.I_roll}`],
+    ['cmd','set',`roll_d = ${pid.D}`],
+    ['cmd','set',`pitch_p = ${pid.P}`],
+    ['cmd','set',`pitch_i = ${pid.I_pitch}`],
+    ['cmd','set',`pitch_d = ${pid.D}`],
+    ['cmd','set',`yaw_p = ${pid.yaw_P}`],
+    ['cmd','set',`yaw_i = ${pid.yaw_I}`],
+    ['cmd','set',`yaw_d = 0`],
+    [''],
+    ['section',`# --- ФІЛЬТРИ (FFT пік: ${analysisData.resonanceFreq} Гц, шум: ${analysisData.dTermNoise}) ---`],
+    ['cmd','set',`gyro_lpf = ${r.filters.gyro_lpf}`],
+    ['cmd','set',`gyro_lpf_type = PT1`],
+    ['cmd','set',`dterm_lpf = ${r.filters.dterm_lpf}`],
+    ['cmd','set',`dterm_lpf_type = PT1`],
+    ['cmd','set',`rpm_filter_harmonics = ${r.rpm_harmonics}`],
+    ['cmd','set',`dyn_notch_quality = ${r.dyn_notch_q}`],
+    [''],
+    ['section','# --- FEEDFORWARD ТА ДИНАМІКА ---'],
+    ['cmd','set',`ff_boost = ${r.ff_boost}`],
+    ['cmd','set',`anti_gravity_gain = ${r.anti_gravity}`],
+    ['cmd','set',`dyn_damping_gain = ${r.dyn_damping_gain}`],
+    ['cmd','set',`dyn_damping_advance = ${r.dyn_damping_adv}`],
+    ['cmd','set',`iterm_relax_type = ${r.iterm_relax_type}`],
+    ['cmd','set',`iterm_relax_cutoff = ${r.iterm_relax_cutoff}`],
+    [''],
+    ['section','# --- TPA (зниження PID при великому газі) ---'],
+    ['cmd','set',`tpa_rate = ${r.tpa_rate}`],
+    ['cmd','set',`tpa_breakpoint = ${r.tpa_breakpoint}`],
+    [''],
+    ['section','# --- МОТОРИ / IDLE ---'],
+    ['cmd','set',`dynamic_idle_min_rpm = ${r.dynamic_idle}`],
+    ['cmd','set',`dynamic_idle_value = 35`],
+    [''],
+    ['section',`# --- КОМПЕНСАЦІЯ БАТАРЕЇ (IR = ${analysisData.ir} мОм) ---`],
+    ['cmd','set',`vbat_sag_compensation = ${r.vbat_sag}`],
+    ['cmd','set',`throttle_boost = ${r.throttle_boost}`],
+    ['cmd','set',`vbat_pid_gain = ON`],
+    [''],
+    ['cmd','save'],
+  ];
+
+  // Bomber: add profile 2 note
+  if(r.missionType==='bomber' && profileNum===1) {
+    lines.push(['']);
+    lines.push(['comment',`# =====================================================`]);
+    lines.push(['comment',`# ПІСЛЯ ВВЕДЕННЯ ПРОФІЛЮ 1 — введіть профіль 2 нижче`]);
+    lines.push(['comment',`# =====================================================`]);
+    lines.push(['comment',`# (скопіюйте CLI-блок Профілю 2 з вкладки вище)`]);
+  }
+
+  return lines.map(l => {
+    if(!l.length || l[0]==='') return '';
+    if(l[0]==='comment') return `<span class="comment">${l[1]}</span>`;
+    if(l[0]==='section') return `<span class="section">${l[1]}</span>`;
+    if(l[0]==='cmd' && l[1]==='set') return `<span class="cmd">set</span> <span class="val">${l[2]}</span>`;
+    if(l[0]==='cmd') return `<span class="cmd">${l[1]}</span> <span class="val">${l[2]??''}</span>`;
+    return l[0];
+  }).join('\n');
+}
+
+function copyCLI() {
+  const btn = event.target;
+  const raw = document.getElementById('cli-output').innerText;
+  navigator.clipboard.writeText(raw).then(() => {
+    btn.textContent='✅ СКОПІЙОВАНО!';
+    setTimeout(()=>btn.textContent='📋 КОПІЮВАТИ CLI-КОМАНДИ', 2000);
+  }).catch(()=>{
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = raw; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    btn.textContent='✅ СКОПІЙОВАНО!';
+    setTimeout(()=>btn.textContent='📋 КОПІЮВАТИ CLI-КОМАНДИ', 2000);
+  });
+}
+</script>
+</body>
+</html>
